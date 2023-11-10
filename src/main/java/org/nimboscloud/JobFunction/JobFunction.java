@@ -1,4 +1,4 @@
-package JobFunction;
+package org.nimboscloud.JobFunction;
 import java.io.ByteArrayOutputStream;
 import java.util.Random;
 import java.util.zip.GZIPOutputStream;

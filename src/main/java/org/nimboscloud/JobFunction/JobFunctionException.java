@@ -1,4 +1,4 @@
-package JobFunction;
+package org.nimboscloud.JobFunction;
 public class JobFunctionException extends Exception {
     private static final int CODE = 138;
 
