@@ -5,9 +5,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.util.Scanner;
 
-import org.nimboscloud.client.stubs.AuthenticationManagerStub;
-import org.nimboscloud.client.stubs.NotificationManagerStub;
-
 public class Application {
 
     private final String serverAddress;
@@ -15,8 +12,8 @@ public class Application {
     private final Socket clientSocket;
 
     //private final TaggedConnection connection;
-    private final AuthenticationManagerStub authManager;
-    private final NotificationManagerStub notificationManager;
+    //private final AuthenticationManagerStub authManager;
+    //private final NotificationManagerStub notificationManager;
 
     public Application(String serverAddress, int port) throws IOException {
 
