@@ -18,32 +18,23 @@ public class ServerWorker implements Runnable{
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream());
 
-            int sum = 0;
-            int count = 0;
             String line;
 
             while ((line = in.readLine()) != null) {
                 try {
-                    int number = Integer.parseInt(line);
-                    sum += number;
-                    count++;
-                    out.println("Sum so far: " + sum);
+                    String command = line;
+
+
+                    out.println("Command received: " + command);
                     out.flush();
-                } catch (NumberFormatException e) {
-                    out.println("Invalid input. Please send numbers only.");
+                } catch (Exception e) {
+                    out.println("Invalid input.");
                     out.flush();
                 }
             }
             socket.shutdownInput();
 
-            if (count > 0) {
-                double average = (double) sum / count;
-                out.println("Average: " + average);
-                out.flush();
-            } else {
-                out.println("No numbers received.");
-                out.flush();
-            }
+            out.println("App closed");
 
 
             socket.shutdownOutput();
