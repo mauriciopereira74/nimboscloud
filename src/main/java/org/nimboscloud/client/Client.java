@@ -20,15 +20,15 @@ public class Client {
 
             String userInput;
             while ((userInput = systemIn.readLine()) != null) {
-                // Check if the user wants to display the help menu
-                if ("help".equalsIgnoreCase(userInput.trim())) {
-                    processHelp();
-                    continue; // Skip the rest of the loop and prompt for user input again
+
+                if ("exit".equalsIgnoreCase(userInput.trim())) {
+                    System.out.println("A sair da aplicação...");
+                    break;
                 }
 
-                // Check if the user wants to exit
-                if ("exit".equalsIgnoreCase(userInput.trim())) {
-                    break;
+                if ("help".equalsIgnoreCase(userInput.trim())) {
+                    processHelp();
+                    continue;
                 }
 
                 out.println(userInput);
@@ -63,8 +63,8 @@ public class Client {
 
         helpMenu.append("nimbouscloud.help> 'register [username] [password]' register a new user with the provided parameters\n");
         helpMenu.append("nimbouscloud.help> 'login [username] [password]' login the user with the provided parameters\n");
-        helpMenu.append("nimbouscloud.help> 'logout [username]' logout the user provied in the username");
-        helpMenu.append("nimbouscloud.help> 'status' displays information about the user\n");
+        helpMenu.append("nimbouscloud.help> 'logout [username]' logout the user provied in the username\n");
+        helpMenu.append("nimbouscloud.help> 'status' [username]' displays information about the user\n");
 
         helpMenu.append("nimbouscloud.help> 'exit' exit de application\n");
 

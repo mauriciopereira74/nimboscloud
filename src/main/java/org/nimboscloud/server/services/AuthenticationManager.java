@@ -30,15 +30,15 @@ public class AuthenticationManager {
         }
     }
 
-    public boolean registerUser(String username, String passwordHash) {
+    public boolean registerUser(String username, String password) {
 
         try {
 
             authLock.lock();
-
-            User newUser = new User(username, passwordHash);
+            User user = new User(username);
+            user.setPassword(password);
             if (!accounts.containsKey(username)) {
-                accounts.put(username, newUser);
+                accounts.put(username, user);
                 return true;
             }
 

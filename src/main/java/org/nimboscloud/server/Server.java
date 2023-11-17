@@ -1,4 +1,7 @@
 package org.nimboscloud.server;
+
+import org.nimboscloud.server.services.AuthenticationManager;
+import org.nimboscloud.server.skeletons.AuthenticationManagerSkeleton;
 import org.nimboscloud.server.workers.ServerWorker;
 
 import java.io.BufferedReader;
@@ -14,9 +17,12 @@ public class Server {
             try {
                 ServerSocket ss = new ServerSocket(1666);
 
+                AuthenticationManager authManager = new AuthenticationManager();
+                AuthenticationManagerSkeleton authSkeleton = new AuthenticationManagerSkeleton(authManager);
+
                 while (true) {
                     Socket socket = ss.accept();
-                    Thread t = new Thread(new ServerWorker(socket));
+                    Thread t = new Thread(new ServerWorker(socket,authSkeleton));
                     t.start();
 
                 }

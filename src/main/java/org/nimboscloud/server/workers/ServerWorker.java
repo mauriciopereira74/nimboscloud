@@ -1,5 +1,8 @@
 package org.nimboscloud.server.workers;
 
+import org.nimboscloud.server.services.AuthenticationManager;
+import org.nimboscloud.server.skeletons.AuthenticationManagerSkeleton;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -7,9 +10,11 @@ import java.net.Socket;
 
 public class ServerWorker implements Runnable{
     private Socket socket;
+    private AuthenticationManagerSkeleton authSkeleton;
 
-    public ServerWorker( Socket s){
+    public ServerWorker(Socket s, AuthenticationManagerSkeleton authSkeleton){
         this.socket = s;
+        this.authSkeleton =authSkeleton;
     }
 
 
@@ -22,10 +27,8 @@ public class ServerWorker implements Runnable{
 
             while ((line = in.readLine()) != null) {
                 try {
-                    String command = line;
-
-
-                    out.println("Command received: " + command);
+                    String[] parts = line.split(" ");
+                    authSkeleton.processCommand(parts, out);
                     out.flush();
                 } catch (Exception e) {
                     out.println("Invalid input.");
@@ -35,7 +38,6 @@ public class ServerWorker implements Runnable{
             socket.shutdownInput();
 
             out.println("App closed");
-
 
             socket.shutdownOutput();
             socket.close();

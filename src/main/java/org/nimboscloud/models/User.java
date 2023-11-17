@@ -22,6 +22,7 @@ public class User {
         this.passwordHash = hashedPassword;
     }
 
+
     public User(String username) {
         this.username = username;
     }
