@@ -41,7 +41,7 @@ public class AuthenticationManagerSkeleton {
             boolean registrationSuccess = authManager.registerUser(username, password);
 
             if (registrationSuccess) {
-                out.println("Registration successful for user: " + username);
+                out.println("0");
             } else {
                 out.println("User " + username + " already exists. Registration failed.");
             }
@@ -57,7 +57,7 @@ public class AuthenticationManagerSkeleton {
             boolean loginSuccess = authManager.loginUser(username, password);
 
             if (loginSuccess) {
-                out.println("Login successful for user: " + username);
+                out.println("1");
             } else {
                 out.println("Login failed. Invalid credentials or user already logged in.");
             }

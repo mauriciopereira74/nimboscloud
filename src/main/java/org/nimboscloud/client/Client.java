@@ -6,6 +6,8 @@ import java.io.PrintWriter;
 import java.net.Socket;
 
 public class Client {
+    private static String username;
+
     public static void main(String[] args) {
         try {
             Socket socket = new Socket("localhost", 1666);
@@ -21,21 +23,37 @@ public class Client {
             String userInput;
             while ((userInput = systemIn.readLine()) != null) {
 
-                if ("exit".equalsIgnoreCase(userInput.trim())) {
+                String[] parts = userInput.split(" ");
+
+                if (parts[0].equals("exit")) {
                     System.out.println("A sair da aplicação...");
                     break;
                 }
-
-                if ("help".equalsIgnoreCase(userInput.trim())) {
+                else if (parts[0].equals("help")) {
                     processHelp();
                     continue;
+                }
+                else if (parts[0].equals("logout") || parts[0].equals("status")){
+                    if (username != null) {
+                        userInput = userInput + " " + username;
+                    }
                 }
 
                 out.println(userInput);
                 out.flush();
 
                 String response = in.readLine();
-                System.out.println("Server response: " + response);
+                // login success
+                if(response.equals("1")){
+                    username = parts[1];
+                    System.out.println("Login successful for user: " + username);
+                }
+                else if ((response.equals("0"))){
+                    System.out.println("Register successful for user: " + parts[1]);
+                }
+                else {
+                    System.out.println(response);
+                }
             }
 
             // Continue with the remaining code (shutdownOutput, etc.) as needed...
@@ -43,9 +61,9 @@ public class Client {
             socket.shutdownOutput();
             String response = in.readLine();
             if (response != null) {
-                System.out.println("Average: " + response);
+                System.out.println("Server: " + response);
             } else {
-                System.out.println("Server did not provide an average.");
+                System.out.println("Nothing from server");
             }
 
             socket.shutdownInput();
@@ -56,20 +74,21 @@ public class Client {
     }
 
     private static void processHelp() {
-
         StringBuilder helpMenu = new StringBuilder();
 
-        helpMenu.append("nimbouscloud.help> 'help' displays this message\n");
-
-        helpMenu.append("nimbouscloud.help> 'register [username] [password]' register a new user with the provided parameters\n");
-        helpMenu.append("nimbouscloud.help> 'login [username] [password]' login the user with the provided parameters\n");
-        helpMenu.append("nimbouscloud.help> 'logout [username]' logout the user provied in the username\n");
-        helpMenu.append("nimbouscloud.help> 'status' [username]' displays information about the user\n");
-
-        helpMenu.append("nimbouscloud.help> 'exit' exit de application\n");
+        helpMenu.append("\n");
+        helpMenu.append("===================================== NIMBOUS CLOUD HELP =====================================\n");
+        helpMenu.append("nimbouscloud.help> 'help'                           - Displays this message\n");
+        helpMenu.append("nimbouscloud.help> 'register [username] [password]' - Register a new user with the provided parameters\n");
+        helpMenu.append("nimbouscloud.help> 'login [username] [password]'    - Login the user with the provided parameters\n");
+        helpMenu.append("nimbouscloud.help> 'logout                          - Logout the user provided in the username\n");
+        helpMenu.append("nimbouscloud.help> 'status                          - Displays information about the user\n");
+        helpMenu.append("nimbouscloud.help> 'exit'                           - Exit the application\n");
+        helpMenu.append("=================================================================================================\n");
 
         System.out.println(helpMenu);
     }
+
 }
 
 

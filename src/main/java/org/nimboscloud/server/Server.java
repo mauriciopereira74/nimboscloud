@@ -20,6 +20,9 @@ public class Server {
                 AuthenticationManager authManager = new AuthenticationManager();
                 AuthenticationManagerSkeleton authSkeleton = new AuthenticationManagerSkeleton(authManager);
 
+                // Crie um administrador para testes
+                authManager.createAdminUser("admin", "admin");
+
                 while (true) {
                     Socket socket = ss.accept();
                     Thread t = new Thread(new ServerWorker(socket,authSkeleton));

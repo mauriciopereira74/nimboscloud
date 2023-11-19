@@ -16,6 +16,8 @@ public class User {
     private String username; // 'username' acts as the identification of a user.
     private String passwordHash; // Hashed password with the algoritm Argon2.
     private Map<String, String> jobs = new HashMap<>();
+    private boolean isAdmin;
+
 
     public User(String username, String hashedPassword) {
         this.username = username;
@@ -99,5 +101,13 @@ public class User {
      * @param jobs The new jobs list of the user.
      */
     public void setJobs(Map<String, String> jobs) {this.jobs = jobs;}
+
+    public boolean isAdmin() {
+        return isAdmin;
+    }
+
+    public void setAdmin(boolean admin) {
+        isAdmin = admin;
+    }
 }
 

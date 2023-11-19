@@ -102,4 +102,16 @@ public class AuthenticationManager {
         }
     }
 
+    public void createAdminUser(String username, String password) {
+        try {
+            authLock.lock();
+            User adminUser = new User(username);
+            adminUser.setPassword(password);
+            adminUser.setAdmin(true);
+            accounts.put(username, adminUser);
+        } finally {
+            authLock.unlock();
+        }
+    }
+
 }
