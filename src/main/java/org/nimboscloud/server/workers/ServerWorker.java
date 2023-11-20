@@ -4,7 +4,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import import org.nimboscloud.server.services.*;
+import org.nimboscloud.JobFunction.JobFunctionException;
+import org.nimboscloud.server.services.*;
 
 public class ServerWorker implements Runnable{
     private Socket socket;
@@ -25,8 +26,8 @@ public class ServerWorker implements Runnable{
                 try {
                     String command = line;
 
+                    out.println(processCommand(command));
 
-                    out.println("Command received: " + command);
                     out.flush();
                 } catch (Exception e) {
                     out.println("Invalid input.");
@@ -45,13 +46,18 @@ public class ServerWorker implements Runnable{
         }
     }
 
-    public void processCommand (String command){
+    public byte[] processCommand (String command) throws JobFunctionException {
         String[] splittedCommand = command.split(" ");
+
 
         ExecuteManager executer = new ExecuteManager();
 
-        if (splittedCommand[1] == "execute"){
-            byte[] response = executer.executeJobFuncion(((byte[])splittedCommand[2]));
+        if ("execute".equals(splittedCommand[0])) {
+            byte[] response = executer.executeJobFuncion(splittedCommand[1].getBytes());
+
+            return response;
         }
+
+        return null;
     }
 }
