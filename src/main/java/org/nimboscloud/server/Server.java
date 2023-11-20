@@ -9,6 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class Server {
+        int memory = 1000;
 
         public static void main(String[] args) {
             try {
