@@ -59,7 +59,7 @@ public class AuthenticationManagerSkeleton {
             if (loginSuccess) {
                 out.println("1");
             } else {
-                out.println("Login failed. Invalid credentials or user already logged in.");
+                out.println("1.1");
             }
         } else {
             out.println("Invalid format for 'login' command. Usage: login [username] [password]");
@@ -72,7 +72,7 @@ public class AuthenticationManagerSkeleton {
             boolean logoutSuccess = authManager.logoutUser(username);
 
             if (logoutSuccess) {
-                out.println("Logout successful for user: " + username);
+                out.println("2");
             } else {
                 out.println("Logout failed. User " + username + " is not logged in.");
             }
