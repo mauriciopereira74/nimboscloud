@@ -9,9 +9,11 @@ import org.nimboscloud.server.services.*;
 
 public class ServerWorker implements Runnable{
     private Socket socket;
+    private ExecuteManager executeManager;
 
-    public ServerWorker( Socket s){
+    public ServerWorker(Socket s, ExecuteManager executeManager){
         this.socket = s;
+        this.executeManager = executeManager;
     }
 
 
@@ -46,14 +48,12 @@ public class ServerWorker implements Runnable{
         }
     }
 
-    public byte[] processCommand (String command) throws JobFunctionException {
+    public byte[] processCommand (String command) throws JobFunctionException, InterruptedException {
         String[] splittedCommand = command.split(" ");
 
-
-        ExecuteManager executer = new ExecuteManager();
-
         if ("execute".equals(splittedCommand[0])) {
-            byte[] response = executer.executeJobFuncion(splittedCommand[1].getBytes());
+
+            byte[] response = executeManager.executeJobFunction(splittedCommand[1].getBytes());
 
             return response;
         }
