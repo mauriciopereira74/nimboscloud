@@ -19,39 +19,16 @@ public class ExecuteManager {
         this.server = server;
     }
 
-    public byte[] executeJobFunction(byte[] clientCode) throws JobFunctionException, InterruptedException {
-
-        /*
+    public byte[] executeJobFunction(byte[] clientCode, int memoryOccupancy) throws JobFunctionException, InterruptedException {
 
 
-            while(clientCode[0] >= server.getMemory())
-                sleep
-
-            server.memory.lock();
-
-            server.removeMemory(clientCode[0]);
-
-            server.memory.unlock();
-
-            byte[] result = JobFunction.execute(clientCode);
-
-            server.memory.lock();
-            server.addMemory(clientCode[0]);
-            server.memory.unlock();
-
-
-            signal.all()
-
-            return result;
-         */
-
-        while(clientCode[0] > server.getMemory()){
+        while(memoryOccupancy > server.getMemory()){
             memoryAccess.await();
         }
 
         lock.lock();
         try {
-            server.removeMemory(clientCode[0]);
+            server.removeMemory(memoryOccupancy);
             System.out.println(server.getMemory());
         }
         finally {
@@ -62,7 +39,7 @@ public class ExecuteManager {
 
         lock.lock();
         try {
-            server.addMemory(clientCode[0]);
+            server.addMemory(memoryOccupancy);
             System.out.println(server.getMemory());
         }
         finally {
