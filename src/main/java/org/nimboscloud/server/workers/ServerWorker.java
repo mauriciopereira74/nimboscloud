@@ -8,16 +8,19 @@ import java.util.Arrays;
 
 import org.nimboscloud.JobFunction.JobFunctionException;
 import org.nimboscloud.server.services.*;
+import org.nimboscloud.server.skeletons.AuthenticationManagerSkeleton;
 
 public class ServerWorker implements Runnable{
     private Socket socket;
     private ExecuteManager executeManager;
+    private AuthenticationManagerSkeleton authSkeleton;
 
-    public ServerWorker(Socket s, ExecuteManager executeManager){
+
+    public ServerWorker(Socket s, ExecuteManager executeManager, AuthenticationManagerSkeleton authSkeleton){
         this.socket = s;
         this.executeManager = executeManager;
+        this.authSkeleton =authSkeleton;
     }
-
 
     public void run(){
         try {
@@ -26,12 +29,18 @@ public class ServerWorker implements Runnable{
 
             String line;
 
+            line = in.readLine();
+
+            String[] parts = line.split(" ");
+
+            authSkeleton.processCommand(parts, out);
+            out.flush();
+
             while ((line = in.readLine()) != null) {
                 try {
-                    String command = line;
+                    parts = line.split(" ");
 
-                    out.println(processCommand(command));
-
+                    out.println(processCommand(line));
                     out.flush();
                 } catch (Exception e) {
                     out.println("Invalid input.");
@@ -65,13 +74,18 @@ public class ServerWorker implements Runnable{
     public byte[] processCommand (String command) throws JobFunctionException, InterruptedException {
         String[] splittedCommand = command.split(" ");
 
-        if ("execute".equals(splittedCommand[0])) {
+        if ("exec".equals(splittedCommand[0])) {
 
             byte[] taskCode = StringToByteArray(splittedCommand[1]);
 
             byte[] response = executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));
 
-            return response;
+            return response; // compor
+        }
+        if("status".equals(splittedCommand[0])) {
+            String response = executeManager.checkStatus();
+
+            //return  response;
         }
 
         return null;

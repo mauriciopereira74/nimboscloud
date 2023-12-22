@@ -38,17 +38,13 @@ public class Application {
     }
 
     public void run() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-
         Scanner userInput = new Scanner(System.in);
         Processor proc = new Processor();
 
         while (true) {
-
             System.out.print("nimboscloud> ");
             String userCommand = userInput.nextLine();
             proc.process(userCommand);
         }
-
     }
-
 }

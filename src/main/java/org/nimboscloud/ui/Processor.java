@@ -97,24 +97,24 @@ public class Processor {
         } else System.out.println("nimbouscloud.error> Invalid usage of 'register' command, check the help menu.");
     }*/
 
-/*    public void processLogin(String userCommand) throws IOException, InterruptedException {
+    /*    public void processLogin(String userCommand) throws IOException, InterruptedException {
 
-        Pattern loginPattern = operationPatterns.get("login");
-        Matcher m = loginPattern.matcher(userCommand);
+            Pattern loginPattern = operationPatterns.get("login");
+            Matcher m = loginPattern.matcher(userCommand);
 
-        if (m.find()) {
+            if (m.find()) {
 
-            String username = m.group(1);
-            String password = m.group(2);
+                String username = m.group(1);
+                String password = m.group(2);
 
-            boolean loginStatus = authManager.loginUser(username, password);
+                boolean loginStatus = authManager.loginUser(username, password);
 
-            if (loginStatus) {
-                System.out.println("nimbouscloud.info> Successfully logged in as '" + username + "'.");
-                loggedInAs = username;
-            } else System.out.println("nimbouscloud.error> Invalid username or password.");
-        } else System.out.println("nimbouscloud.error> Invalid usage of 'login' command, check the help menu.");
-    }*/
+                if (loginStatus) {
+                    System.out.println("nimbouscloud.info> Successfully logged in as '" + username + "'.");
+                    loggedInAs = username;
+                } else System.out.println("nimbouscloud.error> Invalid username or password.");
+            } else System.out.println("nimbouscloud.error> Invalid usage of 'login' command, check the help menu.");
+        }*/
     public void process(String userCommand) throws InvocationTargetException, IllegalAccessException {
 
         String possibleCommand = userCommand.strip();

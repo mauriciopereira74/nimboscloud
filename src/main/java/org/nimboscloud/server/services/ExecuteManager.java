@@ -21,9 +21,24 @@ public class ExecuteManager {
 
     public byte[] executeJobFunction(byte[] clientCode, int memoryOccupancy) throws JobFunctionException, InterruptedException {
 
+        lock.lock();
+        try{
+            server.addThreadsOnWait();
+        }
+        finally {
+            lock.unlock();
+        }
 
         while(memoryOccupancy > server.getMemory()){
             memoryAccess.await();
+        }
+
+        lock.lock();
+        try {
+            server.removeThreadsOnWait();
+        }
+        finally {
+            lock.unlock();
         }
 
         lock.lock();
@@ -45,7 +60,17 @@ public class ExecuteManager {
         finally {
             lock.unlock();
         }
+            lock.notifyAll();
+
             return result;
+        }
+
+        public String checkStatus() {
+            int memoryAvailable = server.getMemory();
+
+            int waitList = server.getThreadsOnWait();
+
+            return "Memory Available: " + memoryAvailable + " | Threads on Wait: " + waitList;
         }
 
 }

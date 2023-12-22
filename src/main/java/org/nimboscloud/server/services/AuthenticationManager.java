@@ -30,15 +30,15 @@ public class AuthenticationManager {
         }
     }
 
-    public boolean registerUser(String username, String passwordHash) {
+    public boolean registerUser(String username, String password) {
 
         try {
 
             authLock.lock();
-
-            User newUser = new User(username, passwordHash);
+            User user = new User(username);
+            user.setPassword(password);
             if (!accounts.containsKey(username)) {
-                accounts.put(username, newUser);
+                accounts.put(username, user);
                 return true;
             }
 
@@ -97,6 +97,18 @@ public class AuthenticationManager {
             authLock.lock();
             return accounts.get(username);
 
+        } finally {
+            authLock.unlock();
+        }
+    }
+
+    public void createAdminUser(String username, String password) {
+        try {
+            authLock.lock();
+            User adminUser = new User(username);
+            adminUser.setPassword(password);
+            adminUser.setAdmin(true);
+            accounts.put(username, adminUser);
         } finally {
             authLock.unlock();
         }
