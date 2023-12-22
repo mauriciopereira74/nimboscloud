@@ -24,7 +24,7 @@ public class Server {
             AuthenticationManagerSkeleton authSkeleton = new AuthenticationManagerSkeleton(authManager);
 
             // Crie um administrador para testes
-            authManager.createAdminUser("admin", "admin");
+            authManager.createAdminUser("a", "a");
 
             while (true) {
 

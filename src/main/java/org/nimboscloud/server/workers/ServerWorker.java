@@ -28,29 +28,36 @@ public class ServerWorker implements Runnable{
             PrintWriter out = new PrintWriter(socket.getOutputStream());
 
             String line;
-
-            line = in.readLine();
-
-            String[] parts = line.split(" ");
-
-            authSkeleton.processCommand(parts, out);
-            out.flush();
+            String[] parts;
+            boolean login_flag = false;
 
             while ((line = in.readLine()) != null) {
                 try {
                     parts = line.split(" ");
 
-                    out.println(processCommand(line));
+                    int flag = 0;
+
+                    if(!login_flag){
+                        flag = authSkeleton.processCommand(parts, out);
+                    }
+
+                    if (flag==2){
+                        login_flag = true;
+                    }
+                    if (login_flag){
+                        processCommand(line,out);
+                        login_flag = false;
+                    }
                     out.flush();
                 } catch (Exception e) {
                     out.println("Invalid input.");
                     out.flush();
                 }
             }
+
             socket.shutdownInput();
 
             out.println("App closed");
-
 
             socket.shutdownOutput();
             socket.close();
@@ -71,23 +78,27 @@ public class ServerWorker implements Runnable{
         return byteArray;
     }
 
-    public byte[] processCommand (String command) throws JobFunctionException, InterruptedException {
+    public void processCommand (String command, PrintWriter out) throws JobFunctionException, InterruptedException {
         String[] splittedCommand = command.split(" ");
+        switch (splittedCommand[0]) {
 
-        if ("exec".equals(splittedCommand[0])) {
+            case "exec" -> {
 
-            byte[] taskCode = StringToByteArray(splittedCommand[1]);
+                byte[] taskCode = StringToByteArray(splittedCommand[1]);
 
-            byte[] response = executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));
+                byte[] response = executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));
 
-            return response; // compor
+                //out.println(response);
+            }
+
+            case "status" -> {
+                String response = executeManager.checkStatus();
+                out.println(response);
+            }
+
+            case "logout" -> {
+                authSkeleton.processCommand(splittedCommand,out);
+            }
         }
-        if("status".equals(splittedCommand[0])) {
-            String response = executeManager.checkStatus();
-
-            //return  response;
-        }
-
-        return null;
     }
 }

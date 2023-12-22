@@ -19,6 +19,7 @@ public class Client {
             // Display help menu as soon as the client connects
             processHelp();
 
+
             BufferedReader systemIn = new BufferedReader(new InputStreamReader(System.in));
 
             String userInput;
