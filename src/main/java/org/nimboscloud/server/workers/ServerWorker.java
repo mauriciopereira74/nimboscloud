@@ -45,6 +45,7 @@ public class ServerWorker implements Runnable{
                         login_flag = true;
                     }
                     if (login_flag){
+
                         processCommand(line,out);
                         login_flag = false;
                     }
@@ -86,7 +87,9 @@ public class ServerWorker implements Runnable{
 
                 byte[] taskCode = StringToByteArray(splittedCommand[1]);
 
-                byte[] response = executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));
+                byte[] response;
+
+                Thread t = new Thread((response) -> {executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));});
 
                 //out.println(response);
             }
