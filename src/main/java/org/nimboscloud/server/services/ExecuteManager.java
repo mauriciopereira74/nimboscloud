@@ -60,7 +60,8 @@ public class ExecuteManager {
         finally {
             lock.unlock();
         }
-            lock.notifyAll();
+
+            //memoryAccess.signalAll();
 
             return result;
         }

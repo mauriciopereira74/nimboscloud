@@ -1,12 +1,15 @@
 package org.nimboscloud.server.workers;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.nimboscloud.JobFunction.JobFunctionException;
 import org.nimboscloud.server.services.*;
@@ -36,34 +39,11 @@ public class ServerWorker implements Runnable{
             //});
             //t.start();
 
-            String line;
-            String[] parts;
-            boolean login_flag = false;
 
-            while ((line = in.readLine()) != null) {
-                try {
-                    parts = line.split(" ");
+            Thread handleClientThread = new Thread(() -> handle_cliente(in, out));
+            handleClientThread.start();
 
-                    int flag = 0;
-
-                    if(!login_flag){
-                        flag = authSkeleton.processCommand(parts, out);
-                    }
-
-                    if (flag==2){
-                        login_flag = true;
-                    }
-                    if (login_flag){
-                        processCommand(line, threadList, out);
-                        login_flag = false;
-                    }
-                    out.flush();
-                } catch (Exception e) {
-                    out.println("Invalid input.");
-                    out.flush();
-                }
-            }
-
+            handleClientThread.join();
             socket.shutdownInput();
 
             out.println("App closed");
@@ -75,10 +55,57 @@ public class ServerWorker implements Runnable{
         }
     }
 
+    public void handle_cliente(BufferedReader in, PrintWriter out) {
+        while(true){
+            try {
+                String line;
+                String[] parts;
+                boolean login_flag = false;
+
+                while ((line = in.readLine()) != null) {
+                    try {
+                        parts = line.split(" ");
+
+                        int flag = 0;
+
+                        if (!login_flag) {
+                            flag = authSkeleton.processCommand(parts, out);
+                        }
+                        if(login_flag && parts[0].equals("logout")){
+                            flag = authSkeleton.processCommand(parts, out);
+                            if (flag==1)
+                                login_flag = false;
+
+                        }
+
+                        if (flag == 2) {
+                            login_flag = true;
+                        }
+
+                        if (login_flag) {
+                            processCommand(line, out);
+                        }
+                        out.flush();
+                    } catch (Exception e) {
+                        System.out.println(e.getMessage());
+                        out.println("Invalid input.");
+                        out.flush();
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+
+            }
+        }
+    }
+
+
     public byte[] StringToByteArray(String input){
-        String[] clean_Input = input.substring(1, input.length() - 1).split(", ");
+
+        String[] clean_Input = input.substring(1, input.length() - 1).split(",");
 
         byte[] byteArray = new byte[clean_Input.length];
+
         for (int i = 0; i < clean_Input.length; i++) {
             int intValue = Integer.parseInt(clean_Input[i]);
             byteArray[i] = (byte) intValue;
@@ -94,16 +121,19 @@ public class ServerWorker implements Runnable{
         }
     }
 
-    public void processCommand (String command, List<Thread> threadList, PrintWriter out) throws JobFunctionException, InterruptedException {
+    public void processCommand (String command, PrintWriter out) throws JobFunctionException, InterruptedException {
+
         String[] splittedCommand = command.split(" ");
 
         switch (splittedCommand[0]) {
 
             case "exec" -> {
 
+                System.out.println(splittedCommand[1]);
+
                 byte[] taskCode = StringToByteArray(splittedCommand[1]);
 
-                //byte[] response;
+
                 //Thread t = new Thread(() -> {executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));});
 
                 Thread t = new Thread(() -> {
@@ -115,22 +145,16 @@ public class ServerWorker implements Runnable{
                         System.err.println("JobFunctionException caught: " + e.getMessage());
                     } catch (InterruptedException e) {
                         System.err.println("InterruptedException caught: " + e.getMessage());
-                    } catch (Exception e) {
-                        System.err.println("Exception caught: " + e.getMessage());
                     }
                 });
+                t.start();
 
-                //secalhar temos de fazer um lock aqui
-                threadList.add(t);
+                t.join();
             }
 
             case "status" -> {
                 String response = executeManager.checkStatus();
                 out.println(response);
-            }
-
-            case "logout" -> {
-                authSkeleton.processCommand(splittedCommand,out);
             }
         }
     }

@@ -101,8 +101,10 @@ public class Client {
                     System.out.println(in.readLine());
                 }
                 case "help" -> processHelp();
-                case "execute-job" -> {
-                    // Lógica para executar um Job
+                case "exec" -> {
+                    out.println(userInput);
+                    out.flush();
+                    System.out.println(in.readLine());
                 }
                 case "view-jobs" -> {
                     // Lógica para visualizar Jobs já executados
