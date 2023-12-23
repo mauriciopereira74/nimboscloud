@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.nimboscloud.JobFunction.JobFunctionException;
 import org.nimboscloud.server.services.*;
@@ -19,13 +21,20 @@ public class ServerWorker implements Runnable{
     public ServerWorker(Socket s, ExecuteManager executeManager, AuthenticationManagerSkeleton authSkeleton){
         this.socket = s;
         this.executeManager = executeManager;
-        this.authSkeleton =authSkeleton;
+        this.authSkeleton = authSkeleton;
     }
 
     public void run(){
         try {
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream());
+
+            List<Thread> threadList = new ArrayList<>();
+
+            //Thread t = new Thread(() -> {
+            //    handleExec(threadList);
+            //});
+            //t.start();
 
             String line;
             String[] parts;
@@ -45,8 +54,7 @@ public class ServerWorker implements Runnable{
                         login_flag = true;
                     }
                     if (login_flag){
-
-                        processCommand(line,out);
+                        processCommand(line, threadList, out);
                         login_flag = false;
                     }
                     out.flush();
@@ -79,19 +87,41 @@ public class ServerWorker implements Runnable{
         return byteArray;
     }
 
-    public void processCommand (String command, PrintWriter out) throws JobFunctionException, InterruptedException {
+    //função para o escalonamento (por fazer)
+    public void handleExec(List<Thread> threadList) {
+        while (true) {
+
+        }
+    }
+
+    public void processCommand (String command, List<Thread> threadList, PrintWriter out) throws JobFunctionException, InterruptedException {
         String[] splittedCommand = command.split(" ");
+
         switch (splittedCommand[0]) {
 
             case "exec" -> {
 
                 byte[] taskCode = StringToByteArray(splittedCommand[1]);
 
-                byte[] response;
+                //byte[] response;
+                //Thread t = new Thread(() -> {executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));});
 
-                Thread t = new Thread((response) -> {executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));});
+                Thread t = new Thread(() -> {
+                    try {
+                        byte[] response = executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));
+                        out.println(response);
 
-                //out.println(response);
+                    } catch (JobFunctionException e) {
+                        System.err.println("JobFunctionException caught: " + e.getMessage());
+                    } catch (InterruptedException e) {
+                        System.err.println("InterruptedException caught: " + e.getMessage());
+                    } catch (Exception e) {
+                        System.err.println("Exception caught: " + e.getMessage());
+                    }
+                });
+
+                //secalhar temos de fazer um lock aqui
+                threadList.add(t);
             }
 
             case "status" -> {
