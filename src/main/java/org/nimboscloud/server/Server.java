@@ -10,11 +10,17 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Server {
     public int memory = 1000;
 
     public int threadsOnWait = 0;
+
+    private ReentrantLock lockMemory = new ReentrantLock();
+    private ReentrantLock lockThreads = new ReentrantLock();
 
     public static void main(String[] args) {
         try {
@@ -22,14 +28,16 @@ public class Server {
 
             AuthenticationManager authManager = new AuthenticationManager();
             AuthenticationManagerSkeleton authSkeleton = new AuthenticationManagerSkeleton(authManager);
+            Server server = new Server();
 
             // Crie um administrador para testes
+
             authManager.createAdminUser("a", "a");
 
             while (true) {
 
                 Socket socket = ss.accept();
-                Thread t = new Thread(new ServerWorker(socket, new ExecuteManager(new Server()),authSkeleton));
+                Thread t = new Thread(new ServerWorker(socket ,authSkeleton ,server));
                 t.start();
 
             }
@@ -39,26 +47,74 @@ public class Server {
     }
 
     public  int getMemory(){
+        try{
+            lockMemory.lock();
             return this.memory;
+        } finally {
+            lockMemory.unlock();
         }
-        public void addMemory(int addValue){
-        this.memory += addValue;
+    }
+    public void addMemory(int addValue){
+        try{
+            lockMemory.lock();
+            this.memory += addValue;
+        }finally {
+            lockMemory.unlock();
+        }
     }
 
     public void removeMemory(int removValue){
-        this.memory -= removValue;
+        try{
+            lockMemory.lock();
+            this.memory -= removValue;
+        }finally {
+            lockMemory.unlock();
+        }
+    }
+
+    public boolean startJob(int mem){
+        try{
+            lockMemory.lock();
+            if(mem < this.getMemory()){
+                this.removeMemory(mem);
+                return true;
+            }else{
+                return false;
+            }
+        }finally {
+            lockMemory.unlock();
+        }
     }
 
     public int getThreadsOnWait() {
-        return threadsOnWait;
+        try{
+            lockThreads.lock();
+            return threadsOnWait;
+        }finally {
+            lockThreads.unlock();
+        }
     }
 
     public void addThreadsOnWait() {
-        this.threadsOnWait += 1;
+        try{
+            lockThreads.lock();
+            this.threadsOnWait += 1;
+        }finally {
+            lockThreads.unlock();
+        }
+
     }
 
     public void removeThreadsOnWait() {
-        this.threadsOnWait -= 1;
+        try{
+            lockThreads.lock();
+            this.threadsOnWait -= 1;
+        }
+        finally {
+            lockThreads.unlock();
+        }
     }
+
+
 
 }

@@ -39,9 +39,11 @@ public class AuthenticationManagerSkeleton {
 
             if (registrationSuccess) {
                 out.println("0");
+                out.flush();
                 return 1;
             } else {
                 out.println("User " + username + " already exists. Registration failed.");
+                out.flush();
             }
         } else {
             out.println("Invalid format for 'register' command. Usage: register [username] [password]");
@@ -57,12 +59,15 @@ public class AuthenticationManagerSkeleton {
 
             if (loginSuccess) {
                 out.println("1");
+                out.flush();
                 return 2;
             } else {
                 out.println("1.1");
+                out.flush();
             }
         } else {
             out.println("Invalid format for 'login' command. Usage: login [username] [password]");
+            out.flush();
 
         }
         return 0;
@@ -75,12 +80,15 @@ public class AuthenticationManagerSkeleton {
 
             if (logoutSuccess) {
                 out.println("2");
+                out.flush();
                 return 3;
             } else {
                 out.println("Logout failed. User " + username + " is not logged in.");
+                out.flush();
             }
         } else {
             out.println("Invalid format for 'logout' command. Usage: logout [username]");
+            out.flush();
         }
         return 0;
     }
@@ -90,9 +98,11 @@ public class AuthenticationManagerSkeleton {
             String username = parts[1];
             String userStatus = authManager.isUserOnline(username) ? "Online" : "Offline";
             out.println("User " + username + " is " + userStatus);
+            out.flush();
             return 4;
         } else {
             out.println("Invalid format for 'status' command. Usage: status [username]");
+            out.flush();
         }
         return 0;
     }

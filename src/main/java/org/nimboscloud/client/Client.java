@@ -104,7 +104,7 @@ public class Client {
                 case "exec" -> {
                     out.println(userInput);
                     out.flush();
-                    System.out.println(in.readLine());
+                    System.out.println("\n" + in.readLine());
                 }
                 case "view-jobs" -> {
                     // Lógica para visualizar Jobs já executados

@@ -11,20 +11,21 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.nimboscloud.JobFunction.JobFunction;
 import org.nimboscloud.JobFunction.JobFunctionException;
+import org.nimboscloud.server.Server;
 import org.nimboscloud.server.services.*;
 import org.nimboscloud.server.skeletons.AuthenticationManagerSkeleton;
 
 public class ServerWorker implements Runnable{
     private Socket socket;
-    private ExecuteManager executeManager;
     private AuthenticationManagerSkeleton authSkeleton;
 
-
-    public ServerWorker(Socket s, ExecuteManager executeManager, AuthenticationManagerSkeleton authSkeleton){
+    private Server server;
+    public ServerWorker(Socket s, AuthenticationManagerSkeleton authSkeleton, Server server){
         this.socket = s;
-        this.executeManager = executeManager;
         this.authSkeleton = authSkeleton;
+        this.server = server;
     }
 
     public void run(){
@@ -56,13 +57,14 @@ public class ServerWorker implements Runnable{
     }
 
     public void handle_cliente(BufferedReader in, PrintWriter out) {
-        while(true){
+
             try {
                 String line;
                 String[] parts;
                 boolean login_flag = false;
 
                 while ((line = in.readLine()) != null) {
+
                     try {
                         parts = line.split(" ");
 
@@ -70,12 +72,11 @@ public class ServerWorker implements Runnable{
 
                         if (!login_flag) {
                             flag = authSkeleton.processCommand(parts, out);
-                        }
-                        if(login_flag && parts[0].equals("logout")){
+                        } else if (parts[0].equals("logout")) {
                             flag = authSkeleton.processCommand(parts, out);
-                            if (flag==1)
+                            if (flag == 1) {
                                 login_flag = false;
-
+                            }
                         }
 
                         if (flag == 2) {
@@ -85,7 +86,8 @@ public class ServerWorker implements Runnable{
                         if (login_flag) {
                             processCommand(line, out);
                         }
-                        out.flush();
+
+
                     } catch (Exception e) {
                         System.out.println(e.getMessage());
                         out.println("Invalid input.");
@@ -97,7 +99,7 @@ public class ServerWorker implements Runnable{
 
             }
         }
-    }
+
 
 
     public byte[] StringToByteArray(String input){
@@ -129,7 +131,6 @@ public class ServerWorker implements Runnable{
 
             case "exec" -> {
 
-                System.out.println(splittedCommand[1]);
 
                 byte[] taskCode = StringToByteArray(splittedCommand[1]);
 
@@ -138,24 +139,46 @@ public class ServerWorker implements Runnable{
 
                 Thread t = new Thread(() -> {
                     try {
-                        byte[] response = executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));
-                        out.println(response);
+                        int mem = Integer.parseInt(splittedCommand[2]);
+                        boolean flag= server.startJob(mem);
+                        int queue=0;
+                        if (queue>0){
+
+                        }
+                        else if(flag){
+
+                            byte[] response = JobFunction.execute(taskCode);
+                            server.addMemory(mem);
+                            out.println(response);
+                            out.flush();
+                            //signall
+                        }
+                        else {
+                            //meter primeiro pedido na queue
+                        }
 
                     } catch (JobFunctionException e) {
-                        System.err.println("JobFunctionException caught: " + e.getMessage());
-                    } catch (InterruptedException e) {
-                        System.err.println("InterruptedException caught: " + e.getMessage());
+                        out.println("JobFunctionException caught: " + e.getMessage());
+                        out.flush();
                     }
                 });
                 t.start();
 
-                t.join();
+                System.out.println(server.getMemory());
+                //t.join();
+
             }
 
             case "status" -> {
-                String response = executeManager.checkStatus();
+                int memoryAvailable = server.getMemory();
+                int waitList = server.getThreadsOnWait();
+
+                String response = "Memory Available: " + memoryAvailable + " | Threads on Wait: " + waitList;
+
                 out.println(response);
+                out.flush();
             }
+
         }
     }
 }
