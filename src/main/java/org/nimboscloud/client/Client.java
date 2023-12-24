@@ -102,9 +102,18 @@ public class Client {
                 }
                 case "help" -> processHelp();
                 case "exec" -> {
-                    out.println(userInput);
-                    out.flush();
-                    System.out.println("\n" + in.readLine());
+                    String finalUserInput = userInput;
+                    // Create a thread for initExec
+                    Thread execThread = new Thread(() -> {
+                        try {
+                            initExec(in, out, finalUserInput);
+                        } catch (IOException e) {
+                            e.printStackTrace(); // Handle the exception according to your needs
+                        }
+                    });
+
+                    // Start the thread
+                    execThread.start();
                 }
                 case "view-jobs" -> {
                     // Lógica para visualizar Jobs já executados
@@ -112,6 +121,12 @@ public class Client {
                 default -> System.out.println("Comando desconhecido. Digite 'help' para obter a lista de comandos.");
             }
         }
+    }
+
+    private static void initExec(BufferedReader in, PrintWriter out, String userInput) throws IOException {
+        out.println(userInput);
+        out.flush();
+        System.out.println("\n" + in.readLine());
     }
 
     private static void authMenu(String username) {
