@@ -1,22 +1,19 @@
 package org.nimboscloud.server;
+import org.nimboscloud.JobFunction.JobFunction;
+import org.nimboscloud.JobFunction.JobFunctionException;
 import org.nimboscloud.server.workers.ServerWorker;
 import org.nimboscloud.server.services.AuthenticationManager;
 import org.nimboscloud.server.skeletons.AuthenticationManagerSkeleton;
 import org.nimboscloud.server.workers.QueueWorker;
+import org.nimboscloud.server.workers.ThreadInfo;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.BlockingQueue;
-
 
 
 public class Server {
@@ -28,7 +25,7 @@ public class Server {
     private ReentrantLock lockThreads = new ReentrantLock();
     public ReentrantLock lockQueue =  new ReentrantLock();
     public Condition waitQueue = lockQueue.newCondition();
-    public BlockingQueue<Object[]> queue = new LinkedBlockingQueue<>();
+    public BlockingQueue<ThreadInfo> queue = new LinkedBlockingQueue<>();
 
 
 
@@ -43,7 +40,11 @@ public class Server {
             // Crie um administrador para testes
 
             authManager.createAdminUser("a", "a");
-            Thread h = new Thread(new QueueWorker(server));
+            QueueWorker queueWorker = new QueueWorker(server);
+
+            Thread h = new Thread(() -> {
+                queueWorker.run();
+            });
             h.start();
             while (true) {
 
@@ -81,6 +82,20 @@ public class Server {
             this.memory -= removValue;
         }finally {
             lockMemory.unlock();
+        }
+    }
+
+
+    public void addToQueue(Thread t, int mem) throws InterruptedException {
+        ThreadInfo threadInfo = new ThreadInfo(t, mem);
+        queue.put(threadInfo);
+    }
+
+    public ThreadInfo getFromQueue() {
+        try {
+            return queue.take();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 

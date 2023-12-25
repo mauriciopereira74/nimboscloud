@@ -120,41 +120,23 @@ public class ServerWorker implements Runnable{
                 int mem = Integer.parseInt(splittedCommand[2]);
                 Thread t = new Thread(() -> {
                     try {
-
-                        boolean flag= server.startJob(mem);
-
-                        if (!server.queue.isEmpty()){
-                            String command2 = splittedCommand[1] + " " + splittedCommand[2];
-                            server.queue.add(new Object[]{command2,out});
-//
-                        }
-                        else if(flag){
-
-                            byte[] response = JobFunction.execute(taskCode);
-                            server.addMemory(mem);
-                            out.println(response);
-                            out.flush();
-                            server.lockQueue.lock();
-                            server.waitQueue.signalAll();
-                            server.lockQueue.unlock();
-
-                        }else{
-                            String command2 = splittedCommand[1] + " " + splittedCommand[2];
-                            server.queue.add(new Object[]{command2,out});
-                        }
+                        server.removeMemory(mem);
+                        byte[] response = JobFunction.execute(taskCode);
+                        server.addMemory(mem);
+                        out.println(response);
+                        out.flush();
 
                     } catch (JobFunctionException e) {
                         server.addMemory(mem);
                         out.println("JobFunctionException caught: " + e.getMessage());
                         out.flush();
-                        server.lockQueue.lock();
-                        server.waitQueue.signalAll();
-                        server.lockQueue.unlock();
                     }
                 });
-                t.start();
 
                 System.out.println(server.getMemory());
+                server.addToQueue(t, mem);
+
+                //t.start();
             }
 
             case "status" -> {
