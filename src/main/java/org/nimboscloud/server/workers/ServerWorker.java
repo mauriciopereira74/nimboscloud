@@ -41,10 +41,11 @@ public class ServerWorker implements Runnable{
             //t.start();
 
 
-            Thread handleClientThread = new Thread(() -> handle_cliente(in, out));
-            handleClientThread.start();
+            handle_cliente(in, out);
 
-            handleClientThread.join();
+
+
+
             socket.shutdownInput();
 
             out.println("App closed");
@@ -136,14 +137,16 @@ public class ServerWorker implements Runnable{
 
 
                 //Thread t = new Thread(() -> {executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));});
-
+                int mem = Integer.parseInt(splittedCommand[2]);
                 Thread t = new Thread(() -> {
                     try {
-                        int mem = Integer.parseInt(splittedCommand[2]);
-                        boolean flag= server.startJob(mem);
-                        int queue=0;
-                        if (queue>0){
 
+                        boolean flag= server.startJob(mem);
+
+                        if (!server.queue.isEmpty()){
+                            String command2 = splittedCommand[1] + " " + splittedCommand[2];
+                            server.queue.add(new Object[]{command2,out});
+//
                         }
                         else if(flag){
 
@@ -151,21 +154,28 @@ public class ServerWorker implements Runnable{
                             server.addMemory(mem);
                             out.println(response);
                             out.flush();
-                            //signall
-                        }
-                        else {
-                            //meter primeiro pedido na queue
+                            server.lockQueue.lock();
+                            server.waitQueue.signalAll();
+                            server.lockQueue.unlock();
+
+                        }else{
+                            String command2 = splittedCommand[1] + " " + splittedCommand[2];
+                            server.queue.add(new Object[]{command2,out});
                         }
 
                     } catch (JobFunctionException e) {
+                        server.addMemory(mem);
                         out.println("JobFunctionException caught: " + e.getMessage());
                         out.flush();
+                        server.lockQueue.lock();
+                        server.waitQueue.signalAll();
+                        server.lockQueue.unlock();
                     }
                 });
                 t.start();
 
                 System.out.println(server.getMemory());
-                //t.join();
+
 
             }
 

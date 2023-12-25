@@ -3,6 +3,7 @@ import org.nimboscloud.server.services.ExecuteManager;
 import org.nimboscloud.server.workers.ServerWorker;
 import org.nimboscloud.server.services.AuthenticationManager;
 import org.nimboscloud.server.skeletons.AuthenticationManagerSkeleton;
+import org.nimboscloud.server.workers.QueueWorker;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -10,9 +11,15 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.BlockingQueue;
+import java.util.LinkedList;
+
+
 
 public class Server {
     public int memory = 1000;
@@ -21,6 +28,11 @@ public class Server {
 
     private ReentrantLock lockMemory = new ReentrantLock();
     private ReentrantLock lockThreads = new ReentrantLock();
+    public ReentrantLock lockQueue =  new ReentrantLock();
+    public Condition waitQueue = lockQueue.newCondition();
+    public BlockingQueue<Object[]> queue = new LinkedBlockingQueue<>();
+
+
 
     public static void main(String[] args) {
         try {
@@ -33,11 +45,13 @@ public class Server {
             // Crie um administrador para testes
 
             authManager.createAdminUser("a", "a");
-
+            Thread h = new Thread(new QueueWorker(server));
+            h.start();
             while (true) {
 
                 Socket socket = ss.accept();
                 Thread t = new Thread(new ServerWorker(socket ,authSkeleton ,server));
+
                 t.start();
 
             }
