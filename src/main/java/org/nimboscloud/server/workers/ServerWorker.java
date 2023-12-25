@@ -33,18 +33,7 @@ public class ServerWorker implements Runnable{
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream());
 
-            List<Thread> threadList = new ArrayList<>();
-
-            //Thread t = new Thread(() -> {
-            //    handleExec(threadList);
-            //});
-            //t.start();
-
-
             handle_cliente(in, out);
-
-
-
 
             socket.shutdownInput();
 
@@ -117,13 +106,6 @@ public class ServerWorker implements Runnable{
         return byteArray;
     }
 
-    //função para o escalonamento (por fazer)
-    public void handleExec(List<Thread> threadList) {
-        while (true) {
-
-        }
-    }
-
     public void processCommand (String command, PrintWriter out) throws JobFunctionException, InterruptedException {
 
         String[] splittedCommand = command.split(" ");
@@ -135,8 +117,6 @@ public class ServerWorker implements Runnable{
 
                 byte[] taskCode = StringToByteArray(splittedCommand[1]);
 
-
-                //Thread t = new Thread(() -> {executeManager.executeJobFunction(taskCode, Integer.parseInt(splittedCommand[2]));});
                 int mem = Integer.parseInt(splittedCommand[2]);
                 Thread t = new Thread(() -> {
                     try {
@@ -175,8 +155,6 @@ public class ServerWorker implements Runnable{
                 t.start();
 
                 System.out.println(server.getMemory());
-
-
             }
 
             case "status" -> {
