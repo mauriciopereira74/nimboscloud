@@ -21,16 +21,22 @@ public class HandleServer implements Runnable{
     private Condition waitQueue = lockQueue.newCondition();
     private Map<Integer, DataOutputStream> clientOutMap = new HashMap<>();
     private Map<Integer, PedidoInfo> pedidoMap = new HashMap<>();
-    private Map<Integer, Integer> clientePedidoCountMap = new HashMap<>();
+
+    private Map<Integer,BlockingQueue> listQueue = new HashMap<>();
+    public ReentrantLock lockList = new ReentrantLock();
+
     private int numPedido;
     private int memory;
     private int threadsOnWait = 0;
     private Socket socket;
-    public HandleServer(BlockingQueue<Object[]> queue, Socket socket){
+
+    public HandleServer(Socket socket,Map<Integer, DataOutputStream> clientOutMap, Map<Integer,BlockingQueue> listQueue, ReentrantLock lockList){
         this.numPedido=1;
         this.memory=1000;
-        this.queue=queue;
         this.socket=socket;
+        this.clientOutMap = clientOutMap;
+        this.listQueue = listQueue;
+        this.lockList=lockList;
     }
         public static class PedidoInfo {
             private final int cliente;
@@ -60,6 +66,9 @@ public class HandleServer implements Runnable{
             DataInputStream in = new DataInputStream(socket.getInputStream());
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             TaggedConnection taggedConnection = new TaggedConnection(in,out);
+            lockList.lock();
+            listQueue.put(1000,queue);
+            lockList.unlock();
             try {
                 Thread t = new Thread(() -> {
                     try {
@@ -93,12 +102,17 @@ public class HandleServer implements Runnable{
     public void handleServerIn(TaggedConnection taggedConnection,BlockingQueue<Object[]> queue) throws InterruptedException {
         while (true) {
             Object[] element = queue.take();
-            String full_string = (String) element[0];
-            String[] splittedString = full_string.split(" ");
-            int client = Integer.parseInt(splittedString[0]);
-            byte[] taskCode = StringToByteArray(splittedString[1]);
-            DataOutputStream outPedido = (DataOutputStream) element[1];
-            int memPedido = Integer.parseInt(splittedString[2]);
+            int client = (int) element[0];
+
+            int tag = (int) element[1];
+
+            int memPedido = (int) element[2];
+            String full_string = (String) element[3];
+            byte[] taskCode = StringToByteArray(full_string);
+
+            DataOutputStream outPedido = (DataOutputStream) element[4];
+
+            System.out.println(outPedido);
             int pedido = this.numPedido;
             this.numPedido++;
             clientOutMap.put(client, outPedido);
@@ -108,7 +122,7 @@ public class HandleServer implements Runnable{
                     this.waitQueue.await();
                 }
                 Thread t = new Thread(() -> {
-                    adicionarPedido(pedido, client, memPedido);
+                    adicionarPedido(pedido, client,tag,memPedido);
                     FrameSend frame = new FrameSend(pedido, taskCode);
                     try {
                         taggedConnection.sendS(frame);
@@ -136,9 +150,9 @@ public class HandleServer implements Runnable{
             Thread t = new Thread(() -> {
                 try {
                     PedidoInfo pedido = obterPedido(frame.tag);
-
                     addMemory(pedido.memPedido);
                     DataOutputStream outputStream = clientOutMap.get(pedido.cliente);
+                    outputStream.writeInt(frame.exp);
 
                     if (frame.exp == 1) {
                         outputStream.writeInt(pedido.pedidoCliente);
@@ -246,11 +260,9 @@ public class HandleServer implements Runnable{
         }
     }
 
-    public void adicionarPedido(int pedido, int client, int memPedido) {
-        int pedidoCliente = clientePedidoCountMap.getOrDefault(client, 0) + 1;
-        clientePedidoCountMap.put(client, pedidoCliente);
+    public void adicionarPedido(int pedido, int client, int tag, int memPedido) {
 
-        PedidoInfo info = new PedidoInfo(client, pedidoCliente, memPedido);
+        PedidoInfo info = new PedidoInfo(client, tag, memPedido);
         pedidoMap.put(pedido, info);
     }
 

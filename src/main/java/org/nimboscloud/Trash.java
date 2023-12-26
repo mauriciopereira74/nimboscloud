@@ -41,7 +41,7 @@ public class Trash {
 //
 //                        if (!server.queue.isEmpty()){
 //                            String command2 = splittedCommand[1] + " " + splittedCommand[2];
-//                            server.queue.add(new Object[]{command2,out});
+//                            server.queue.add(new Object[]{client,tag,command2,out});
 ////
 //                        }
 //                        else if(flag){

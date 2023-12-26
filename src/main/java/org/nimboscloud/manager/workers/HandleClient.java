@@ -1,21 +1,28 @@
 package org.nimboscloud.manager.workers;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.Socket;
 import java.io.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.BlockingQueue;
 
 import org.nimboscloud.manager.skeletons.AuthenticationManagerSkeleton;
 
 public class HandleClient implements Runnable {
     private Socket socket;
     private AuthenticationManagerSkeleton authSkeleton;
+    private int cliente;
+    public Map<Integer,BlockingQueue> listQueue = new HashMap<>();
+    public ReentrantLock lockList = new ReentrantLock();
 
-    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton) {
+    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int cliente, Map<Integer, BlockingQueue> listQueue, ReentrantLock lockList) {
         this.socket = s;
         this.authSkeleton = authSkeleton;
+        this.cliente = cliente;
+        this.listQueue.putAll(listQueue);
+        this.lockList = lockList;
     }
 
     public void run() {
@@ -61,11 +68,18 @@ public class HandleClient implements Runnable {
                         flag = authSkeleton.processLogout(username, out);
                     }
                     case 3 -> { // exec
-                        int pedido = in.readInt();
+                        int tag = in.readInt();
                         int mem = in.readInt();
-                        int length = in.readInt();
-                        byte[] data = new byte[length];
-                        in.readFully(data);
+                        String data = in.readUTF();
+                        lockList.lock();
+                        BlockingQueue aux = listQueue.get(1000);
+                        if(aux!=null) {
+                                aux.add(new Object[]{cliente, tag, mem, data, out});
+                        }
+                        lockList.unlock();
+
+
+
                     }
                     case 4 -> { // status
 
@@ -77,6 +91,10 @@ public class HandleClient implements Runnable {
 
             }
         }
+    }
+
+    public int getCliente(){
+        return this.cliente;
     }
 
 

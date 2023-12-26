@@ -11,6 +11,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
@@ -21,7 +22,7 @@ public class Server {
     public int memory;
 
     public Server() {
-        this.memory = 5000;
+        this.memory = 1000;
     }
 
     public static void main(String[] args) {
@@ -39,6 +40,7 @@ public class Server {
                 Thread t = new Thread(() -> {
                     try {
                         byte[] response = JobFunction.execute(frameSend.data);
+                        System.out.println(Arrays.toString(response));
                         FrameReceive frameReceive = new FrameReceive(frameSend.tag,0,response);
                         taggedConnection.sendR(frameReceive);
 

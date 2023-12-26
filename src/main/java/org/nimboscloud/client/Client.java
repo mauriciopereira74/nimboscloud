@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.io.*;
+import java.util.Arrays;
 
 public class Client {
     private static String username;
@@ -20,7 +21,6 @@ public class Client {
 
             // Display help menu as soon as the client connects
             processHelp();
-
 
             BufferedReader systemIn = new BufferedReader(new InputStreamReader(System.in));
 
@@ -44,13 +44,6 @@ public class Client {
             // Continue with the remaining code (shutdownOutput, etc.) as needed...
 
             socket.shutdownOutput();
-            String response = in.readLine();
-            if (response != null) {
-                System.out.println("Server: " + response);
-            } else {
-                System.out.println("Nothing from server");
-            }
-
             socket.shutdownInput();
             socket.close();
         } catch (Exception e) {
@@ -133,6 +126,7 @@ public class Client {
                     Thread t = new Thread(() -> {
                         try {
                             initExec(in, out, parts,jobs);
+                            waitExec(in,out);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -150,28 +144,34 @@ public class Client {
 
     private static void initExec(DataInputStream in, DataOutputStream out, String[] parts, int jobs) throws IOException {
 
-        byte[] dataS = StringToByteArray(parts[1]);
         out.writeInt(3);
         out.writeInt(jobs++);
         out.writeInt(Integer.parseInt(parts[2]));
-        out.writeInt(dataS.length);
-        out.write(dataS);
+        out.writeUTF(parts[1]);
         out.flush();
 
+    }
 
-        int tag = in.readInt();
-        int exp = in.readInt();
-        byte[] data;
-        String response = null;
-        if (exp==0) {
-            int lenght = in.readInt();
-            data = new byte[lenght];
-            in.readFully(data);
-            System.out.println(tag + " " + data);
-        } else{
-            response = in.readUTF();
-            System.out.println(tag + " " + response);
+    private static void waitExec(DataInputStream in, DataOutputStream out){
+
+        try {
+            int exp = in.readInt();
+            int tag = in.readInt();
+            byte[] data;
+            String response = null;
+            if (exp == 0) {
+                int lenght = in.readInt();
+                data = new byte[lenght];
+                in.readFully(data);
+                System.out.println(tag + " " + Arrays.toString(data));
+            } else {
+                response = in.readUTF();
+                System.out.println(tag + " " + response);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
     }
 
     private static void authMenu(String username) {
@@ -202,21 +202,6 @@ public class Client {
 
         System.out.println(helpMenu);
     }
-
-    public static byte[] StringToByteArray(String input){
-
-        String[] clean_Input = input.substring(1, input.length() - 1).split(",");
-
-        byte[] byteArray = new byte[clean_Input.length];
-
-        for (int i = 0; i < clean_Input.length; i++) {
-            int intValue = Integer.parseInt(clean_Input[i]);
-            byteArray[i] = (byte) intValue;
-        }
-
-        return byteArray;
-    }
-
 }
 
 

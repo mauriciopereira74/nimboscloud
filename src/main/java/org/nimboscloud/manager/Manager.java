@@ -4,9 +4,13 @@ import org.nimboscloud.manager.services.AuthenticationManager;
 import org.nimboscloud.manager.skeletons.AuthenticationManagerSkeleton;
 import org.nimboscloud.manager.workers.HandleServer;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -15,17 +19,9 @@ import java.util.concurrent.BlockingQueue;
 
 
 public class Manager {
-    public int memory = 1000;
-
-    public int threadsOnWait = 0;
-
-    private ReentrantLock lockMemory = new ReentrantLock();
-    private ReentrantLock lockThreads = new ReentrantLock();
-    public ReentrantLock lockQueue =  new ReentrantLock();
-    public Condition waitQueue = lockQueue.newCondition();
-    public BlockingQueue<Object[]> queue = new LinkedBlockingQueue<>();
-
-
+    public Map<Integer, DataOutputStream> clientOutMap = new HashMap<>();
+    public Map<Integer,BlockingQueue> listQueue = new HashMap<>();
+    public ReentrantLock lockList = new ReentrantLock();
 
     public static void main(String[] args) {
         Manager manager = new Manager();
@@ -62,13 +58,14 @@ public class Manager {
         AuthenticationManager authManager = new AuthenticationManager();
         AuthenticationManagerSkeleton authSkeleton = new AuthenticationManagerSkeleton(authManager);
         authManager.createAdminUser("a", "a");
+        int numCliente=0;
 
         while (true) {
 
             Socket socket = ss.accept();
-            Thread t = new Thread(new HandleClient(socket,authSkeleton));
-
+            Thread t = new Thread(new HandleClient(socket,authSkeleton,numCliente,listQueue,lockList));
             t.start();
+            numCliente++;
 
         }
     }
@@ -79,8 +76,7 @@ public class Manager {
         while (true) {
 
             Socket socket = ss.accept();
-            BlockingQueue<Object[]> queue = new LinkedBlockingQueue<>();
-            Thread t = new Thread(new HandleServer(queue,socket));
+            Thread t = new Thread(new HandleServer(socket,clientOutMap,listQueue,lockList));
 
             t.start();
 
