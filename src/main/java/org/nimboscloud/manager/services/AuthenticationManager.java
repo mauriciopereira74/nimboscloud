@@ -1,6 +1,5 @@
-package org.nimboscloud.server.services;
+package org.nimboscloud.manager.services;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;

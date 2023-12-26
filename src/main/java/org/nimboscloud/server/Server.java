@@ -1,132 +1,69 @@
 package org.nimboscloud.server;
-import org.nimboscloud.server.workers.ServerWorker;
-import org.nimboscloud.server.services.AuthenticationManager;
-import org.nimboscloud.server.skeletons.AuthenticationManagerSkeleton;
-import org.nimboscloud.server.workers.QueueWorker;
 
-import java.io.BufferedReader;
+import org.nimboscloud.manager.services.TaggedConnection;
+import static  org.nimboscloud.manager.services.TaggedConnection.FrameSend;
+import static  org.nimboscloud.manager.services.TaggedConnection.FrameReceive;
+import org.nimboscloud.JobFunction.JobFunction;
+import org.nimboscloud.JobFunction.JobFunctionException;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Queue;
+import java.net.UnknownHostException;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.BlockingQueue;
-
-
 
 public class Server {
-    public int memory = 1000;
 
-    public int threadsOnWait = 0;
+    public int memory;
 
-    private ReentrantLock lockMemory = new ReentrantLock();
-    private ReentrantLock lockThreads = new ReentrantLock();
-    public ReentrantLock lockQueue =  new ReentrantLock();
-    public Condition waitQueue = lockQueue.newCondition();
-    public BlockingQueue<Object[]> queue = new LinkedBlockingQueue<>();
-
-
+    public Server() {
+        this.memory = 5000;
+    }
 
     public static void main(String[] args) {
+        //this.memory = Integer.parseInt(args[1]);
         try {
-            ServerSocket ss = new ServerSocket(1666);
+            Socket socket = new Socket("localhost", 1667);
 
-            AuthenticationManager authManager = new AuthenticationManager();
-            AuthenticationManagerSkeleton authSkeleton = new AuthenticationManagerSkeleton(authManager);
-            Server server = new Server();
+            DataInputStream in = new DataInputStream(socket.getInputStream());
+            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+            TaggedConnection taggedConnection = new TaggedConnection(in,out);
 
-            // Crie um administrador para testes
+            while (true){
+                FrameSend frameSend = taggedConnection.receiveS();
 
-            authManager.createAdminUser("a", "a");
-            Thread h = new Thread(new QueueWorker(server));
-            h.start();
-            while (true) {
+                Thread t = new Thread(() -> {
+                    try {
+                        byte[] response = JobFunction.execute(frameSend.data);
+                        FrameReceive frameReceive = new FrameReceive(frameSend.tag,0,response);
+                        taggedConnection.sendR(frameReceive);
 
-                Socket socket = ss.accept();
-                Thread t = new Thread(new ServerWorker(socket ,authSkeleton ,server));
+                    } catch (JobFunctionException e) {
+                        FrameReceive frameReceive = new FrameReceive(frameSend.tag,0,null);
+                        try {
+                            taggedConnection.sendR(frameReceive);
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
 
                 t.start();
-
             }
+
+
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
-
-    public  int getMemory(){
-        try{
-            lockMemory.lock();
-            return this.memory;
-        } finally {
-            lockMemory.unlock();
-        }
-    }
-    public void addMemory(int addValue){
-        try{
-            lockMemory.lock();
-            this.memory += addValue;
-        }finally {
-            lockMemory.unlock();
-        }
-    }
-
-    public void removeMemory(int removValue){
-        try{
-            lockMemory.lock();
-            this.memory -= removValue;
-        }finally {
-            lockMemory.unlock();
-        }
-    }
-
-    public boolean startJob(int mem){
-        try{
-            lockMemory.lock();
-            if(mem < this.getMemory()){
-                this.removeMemory(mem);
-                return true;
-            }else{
-                return false;
-            }
-        }finally {
-            lockMemory.unlock();
-        }
-    }
-
-    public int getThreadsOnWait() {
-        try{
-            lockThreads.lock();
-            return threadsOnWait;
-        }finally {
-            lockThreads.unlock();
-        }
-    }
-
-    public void addThreadsOnWait() {
-        try{
-            lockThreads.lock();
-            this.threadsOnWait += 1;
-        }finally {
-            lockThreads.unlock();
-        }
-
-    }
-
-    public void removeThreadsOnWait() {
-        try{
-            lockThreads.lock();
-            this.threadsOnWait -= 1;
-        }
-        finally {
-            lockThreads.unlock();
-        }
-    }
-
-
-
 }
+

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.io.*;
 
 public class Client {
     private static String username;
@@ -13,8 +14,8 @@ public class Client {
         try {
             Socket socket = new Socket("localhost", 1666);
 
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream());
+            DataInputStream in = new DataInputStream(socket.getInputStream());
+            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
 
             // Display help menu as soon as the client connects
             processHelp();
@@ -35,22 +36,8 @@ public class Client {
                     processHelp();
                     continue;
                 }
-                out.println(userInput);
-                out.flush();
+                handle_command(parts, in, out);
 
-                String response = in.readLine();
-                // login success
-                if(response.equals("1")){
-                    username = parts[1];
-                    System.out.println("Login successful for user: " + username);
-                    processAuthenticatedMenu(systemIn, in, out);
-                } else if ((response.equals("0"))){
-                    System.out.println("Register successful for user: " + parts[1]);
-                } else if ((response.equals("1.1"))) {
-                    System.out.println("Login failed. Invalid credentials or user already logged in.\n");
-                } else {
-                    System.out.println(response);
-                }
             }
 
             // Continue with the remaining code (shutdownOutput, etc.) as needed...
@@ -70,9 +57,48 @@ public class Client {
         }
     }
 
-    private static void processAuthenticatedMenu(BufferedReader systemIn, BufferedReader in, PrintWriter out) throws IOException, IOException {
+    private static void handle_command(String[] parts, DataInputStream in, DataOutputStream out){
+        try{
+            if(parts[0].equals("register")){
+                out.writeInt(0);
+                out.writeUTF(parts[1]);
+                out.writeUTF(parts[2]);
+                out.flush();
+
+                boolean flag = in.readBoolean();
+                if (flag) System.out.println("Register successful for user: " + parts[1]);
+            }
+            else if (parts[0].equals("login")){
+                out.writeInt(1);
+                out.writeUTF(parts[1]);
+                out.writeUTF(parts[2]);
+                out.flush();
+
+                boolean flag = in.readBoolean();
+                if (flag) {
+                    username = parts[1];
+                    System.out.println("Login successful for user: " + username);
+                    processAuthenticatedMenu(in, out);
+                }
+                else{
+                    System.out.println("Login failed. Invalid credentials or user already logged in.\n");
+                }
+            }
+            else{
+                System.out.println("Command doesnt exist!");
+                return;
+            }
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private static void processAuthenticatedMenu(DataInputStream in, DataOutputStream out) throws IOException, IOException {
 
         authMenu(username);
+
+        BufferedReader systemIn = new BufferedReader(new InputStreamReader(System.in));
 
         String userInput;
         label:
@@ -81,39 +107,36 @@ public class Client {
 
             switch (parts[0]) {
                 case "logout" -> {
-                    userInput = userInput + " " + username;
-                    out.println(userInput);
+                    out.writeInt(2);
+                    out.writeUTF(username);
                     out.flush();
-                    String response = in.readLine();
-                    if (response.equals("2")) {
+                    int response = in.readInt();
+                    if (response == 1) {
                         System.out.println("Logout successful for user: " + username);
-                        for (int i = 0; i < 5; ++i) System.out.println();
+                        for (int i = 0; i < 3; ++i) System.out.println();
                         processHelp();
                         break label;
                     } else {
-                        System.out.println(response);
+                        System.out.println("Logout error!");
                     }
                 }
                 case "status" -> {
-                    userInput = userInput + " " + username;
-                    out.println(userInput);
+                    out.writeInt(4);
                     out.flush();
-                    System.out.println(in.readLine());
+                    System.out.println(in.readUTF());
                 }
                 case "help" -> processHelp();
                 case "exec" -> {
-                    String finalUserInput = userInput;
-                    // Create a thread for initExec
-                    Thread execThread = new Thread(() -> {
+
+                    Thread t = new Thread(() -> {
                         try {
-                            initExec(in, out, finalUserInput);
+                            initExec(in, out, parts);
                         } catch (IOException e) {
-                            e.printStackTrace(); // Handle the exception according to your needs
+                            e.printStackTrace();
                         }
                     });
 
-                    // Start the thread
-                    execThread.start();
+                    t.start();
                 }
                 case "view-jobs" -> {
                     // Lógica para visualizar Jobs já executados
@@ -123,10 +146,28 @@ public class Client {
         }
     }
 
-    private static void initExec(BufferedReader in, PrintWriter out, String userInput) throws IOException {
-        out.println(userInput);
+    private static void initExec(DataInputStream in, DataOutputStream out, String[] parts) throws IOException {
+
+        byte[] dataS = StringToByteArray(parts[1]);
+        out.writeInt(3);
+        out.writeInt(Integer.parseInt(parts[2]));
+        out.writeInt(dataS.length);
+        out.write(dataS);
         out.flush();
-        System.out.println("\n" + in.readLine());
+
+        int tag = in.readInt();
+        int exp = in.readInt();
+        byte[] data;
+        String response = null;
+        if (exp==0) {
+            int lenght = in.readInt();
+            data = new byte[lenght];
+            in.readFully(data);
+            System.out.println(tag + " " + data);
+        } else{
+            response = in.readUTF();
+            System.out.println(tag + " " + response);
+        }
     }
 
     private static void authMenu(String username) {
@@ -156,6 +197,20 @@ public class Client {
         helpMenu.append("=========================================================================================================\n");
 
         System.out.println(helpMenu);
+    }
+
+    public static byte[] StringToByteArray(String input){
+
+        String[] clean_Input = input.substring(1, input.length() - 1).split(",");
+
+        byte[] byteArray = new byte[clean_Input.length];
+
+        for (int i = 0; i < clean_Input.length; i++) {
+            int intValue = Integer.parseInt(clean_Input[i]);
+            byteArray[i] = (byte) intValue;
+        }
+
+        return byteArray;
     }
 
 }
