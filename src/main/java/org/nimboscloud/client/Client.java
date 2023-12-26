@@ -125,7 +125,7 @@ public class Client {
 
                     Thread t = new Thread(() -> {
                         try {
-                            initExec(in, out, parts,jobs);
+                            initExec(in, out, parts);
                             waitExec(in,out);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -142,13 +142,16 @@ public class Client {
         }
     }
 
-    private static void initExec(DataInputStream in, DataOutputStream out, String[] parts, int jobs) throws IOException {
+    private static void initExec(DataInputStream in, DataOutputStream out, String[] parts) throws IOException {
 
         out.writeInt(3);
-        out.writeInt(jobs++);
+        out.writeInt(jobs);
         out.writeInt(Integer.parseInt(parts[2]));
         out.writeUTF(parts[1]);
         out.flush();
+
+        System.out.println(" | Pedido Com Tag: "+ jobs + " |");
+        jobs = jobs +1;
 
     }
 
@@ -162,17 +165,13 @@ public class Client {
             int pedidoCliente = Integer.parseInt(parts[1]);
 
             if (exp == 1) {
-                // Se exp for 1, então a terceira parte contém a mensagem de erro
-                String errorMsg = parts[2];
-                System.out.println("Error: " + errorMsg);
-            } else {
-                // Se exp não for 1, a terceira parte contém o comprimento dos dados e a quarta parte contém os dados
-                int dataLength = Integer.parseInt(parts[2]);
-                byte[] data = new byte[dataLength];
 
-                // Recuperar a representação original do array de bytes
-                String dataStringRepresentation = parts[3];
-                System.out.println(dataStringRepresentation);
+                String errorMsg = parts[2];
+                System.out.println("\nOutput Pedido com a Tag: " + pedidoCliente + "\nError: " + errorMsg + '\n');
+            } else {
+
+                String data = parts[2];
+                System.out.println("\nOutput Pedido com a Tag: " + pedidoCliente + "\n->" + data + '\n');
             }
 
         } catch (Exception e) {

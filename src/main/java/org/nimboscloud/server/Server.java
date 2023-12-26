@@ -6,9 +6,7 @@ import static  org.nimboscloud.manager.services.TaggedConnection.FrameReceive;
 import org.nimboscloud.JobFunction.JobFunction;
 import org.nimboscloud.JobFunction.JobFunctionException;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -19,11 +17,9 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class Server {
 
-    public int memory;
+    private static int memory;
 
-    public Server() {
-        this.memory = 1000;
-    }
+    public Server(){}
 
     public static void main(String[] args) {
         //this.memory = Integer.parseInt(args[1]);
@@ -33,6 +29,23 @@ public class Server {
             DataInputStream in = new DataInputStream(socket.getInputStream());
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             TaggedConnection taggedConnection = new TaggedConnection(in,out);
+
+            try {
+                BufferedReader systemIn = new BufferedReader(new InputStreamReader(System.in));
+
+                System.out.print("Enter the memory of the Server: ");
+                String userInput = systemIn.readLine();
+
+                // Parse the string input to an integer
+                memory = Integer.parseInt(userInput);
+
+            } catch (IOException | NumberFormatException e) {
+                // Handle exceptions (e.g., invalid input)
+                System.err.println("Error: " + e.getMessage());
+            }
+
+            out.writeInt(memory);
+            out.flush();
 
             while (true){
                 FrameSend frameSend = taggedConnection.receiveS();
@@ -45,7 +58,7 @@ public class Server {
                         taggedConnection.sendR(frameReceive);
 
                     } catch (JobFunctionException e) {
-                        FrameReceive frameReceive = new FrameReceive(frameSend.tag,0,null);
+                        FrameReceive frameReceive = new FrameReceive(frameSend.tag,1,null);
                         try {
                             taggedConnection.sendR(frameReceive);
                         } catch (IOException ex) {

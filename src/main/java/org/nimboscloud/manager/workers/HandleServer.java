@@ -27,13 +27,12 @@ public class HandleServer implements Runnable{
     public ReentrantLock lockList = new ReentrantLock();
 
     private int numPedido;
-    private int memory;
+    private static int memory;
     private int threadsOnWait = 0;
     private Socket socket;
 
     public HandleServer(Socket socket,Map<Integer, DataOutputStream> clientOutMap, Map<Integer,BlockingQueue> listQueue, ReentrantLock lockList){
         this.numPedido=1;
-        this.memory=1000;
         this.socket=socket;
         this.clientOutMap = clientOutMap;
         this.listQueue = listQueue;
@@ -67,6 +66,7 @@ public class HandleServer implements Runnable{
             DataInputStream in = new DataInputStream(socket.getInputStream());
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             TaggedConnection taggedConnection = new TaggedConnection(in,out);
+            memory = in.readInt();
             lockList.lock();
             listQueue.put(1000,queue);
             lockList.unlock();
@@ -113,14 +113,14 @@ public class HandleServer implements Runnable{
 
             DataOutputStream outPedido = (DataOutputStream) element[4];
 
-            System.out.println(outPedido);
             int pedido = this.numPedido;
             this.numPedido++;
             clientOutMap.put(client, outPedido);
 
-            try {
                 while (!this.startJob(memPedido)) {
+                    lockQueue.lock();
                     this.waitQueue.await();
+                    lockQueue.unlock();
                 }
                 Thread t = new Thread(() -> {
                     adicionarPedido(pedido, client,tag,memPedido);
@@ -133,14 +133,10 @@ public class HandleServer implements Runnable{
                 });
 
                 t.start();
-
-
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-
         }
+
     }
+
 
     public void handleServerOut(TaggedConnection taggedConnection) throws IOException {
 
@@ -160,7 +156,7 @@ public class HandleServer implements Runnable{
                         dataString += "Could not compute the job.";
 
                     } else {
-                        dataString += frame.data.length + "|" + Arrays.toString(frame.data);
+                        dataString += Arrays.toString(frame.data);
                     }
 
                     outputStream.writeUTF(dataString);
