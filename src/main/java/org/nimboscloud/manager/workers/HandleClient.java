@@ -38,41 +38,44 @@ public class HandleClient implements Runnable {
     }
 
     public void handle_cliente(DataInputStream in, DataOutputStream out) {
+        while (true) {
 
-        try {
-            int command;
-            command = in.readInt();
-            boolean flag;
+            try {
+                int command;
+                command = in.readInt();
+                boolean flag;
 
-            switch (command){
-                case 0 -> { // register
-                    String username = in.readUTF();
-                    String password = in.readUTF();
-                    flag = authSkeleton.processRegister(username,password,out);
-                }
-                case 1 -> { //login
-                    String username = in.readUTF();
-                    String password = in.readUTF();
-                    flag = authSkeleton.processLogin(username,password,out);
-                }
-                case 2 ->{ // logout
-                    String username = in.readUTF();
-                    flag= authSkeleton.processLogout(username,out);
-                }
-                case 3->{ // exec
-                    int mem = in.readInt();
-                    int length = in.readInt();
-                    byte[] data = new byte[length];
-                    in.readFully(data);
-                }
-                case 4->{ // status
+                switch (command) {
+                    case 0 -> { // register
+                        String username = in.readUTF();
+                        String password = in.readUTF();
+                        flag = authSkeleton.processRegister(username, password, out);
+                    }
+                    case 1 -> { //login
+                        String username = in.readUTF();
+                        String password = in.readUTF();
+                        flag = authSkeleton.processLogin(username, password, out);
+                    }
+                    case 2 -> { // logout
+                        String username = in.readUTF();
+                        flag = authSkeleton.processLogout(username, out);
+                    }
+                    case 3 -> { // exec
+                        int pedido = in.readInt();
+                        int mem = in.readInt();
+                        int length = in.readInt();
+                        byte[] data = new byte[length];
+                        in.readFully(data);
+                    }
+                    case 4 -> { // status
 
+                    }
                 }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+
             }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-
         }
     }
 

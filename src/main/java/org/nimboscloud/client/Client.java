@@ -9,6 +9,7 @@ import java.io.*;
 
 public class Client {
     private static String username;
+    private static int jobs;
 
     public static void main(String[] args) {
         try {
@@ -97,6 +98,7 @@ public class Client {
     private static void processAuthenticatedMenu(DataInputStream in, DataOutputStream out) throws IOException, IOException {
 
         authMenu(username);
+        jobs = 0;
 
         BufferedReader systemIn = new BufferedReader(new InputStreamReader(System.in));
 
@@ -130,7 +132,7 @@ public class Client {
 
                     Thread t = new Thread(() -> {
                         try {
-                            initExec(in, out, parts);
+                            initExec(in, out, parts,jobs);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -146,14 +148,16 @@ public class Client {
         }
     }
 
-    private static void initExec(DataInputStream in, DataOutputStream out, String[] parts) throws IOException {
+    private static void initExec(DataInputStream in, DataOutputStream out, String[] parts, int jobs) throws IOException {
 
         byte[] dataS = StringToByteArray(parts[1]);
         out.writeInt(3);
+        out.writeInt(jobs++);
         out.writeInt(Integer.parseInt(parts[2]));
         out.writeInt(dataS.length);
         out.write(dataS);
         out.flush();
+
 
         int tag = in.readInt();
         int exp = in.readInt();
