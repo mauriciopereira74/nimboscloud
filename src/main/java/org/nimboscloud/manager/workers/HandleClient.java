@@ -77,9 +77,6 @@ public class HandleClient implements Runnable {
                                 aux.add(new Object[]{cliente, tag, mem, data, out});
                         }
                         lockList.unlock();
-
-
-
                     }
                     case 4 -> { // status
 

@@ -155,19 +155,26 @@ public class Client {
     private static void waitExec(DataInputStream in, DataOutputStream out){
 
         try {
-            int exp = in.readInt();
-            int tag = in.readInt();
-            byte[] data;
-            String response = null;
-            if (exp == 0) {
-                int lenght = in.readInt();
-                data = new byte[lenght];
-                in.readFully(data);
-                System.out.println(tag + " " + Arrays.toString(data));
+            String full_string = in.readUTF();
+            String[] parts = full_string.split("\\|");
+            // Extrair os valores
+            int exp = Integer.parseInt(parts[0]);
+            int pedidoCliente = Integer.parseInt(parts[1]);
+
+            if (exp == 1) {
+                // Se exp for 1, então a terceira parte contém a mensagem de erro
+                String errorMsg = parts[2];
+                System.out.println("Error: " + errorMsg);
             } else {
-                response = in.readUTF();
-                System.out.println(tag + " " + response);
+                // Se exp não for 1, a terceira parte contém o comprimento dos dados e a quarta parte contém os dados
+                int dataLength = Integer.parseInt(parts[2]);
+                byte[] data = new byte[dataLength];
+
+                // Recuperar a representação original do array de bytes
+                String dataStringRepresentation = parts[3];
+                System.out.println(dataStringRepresentation);
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }

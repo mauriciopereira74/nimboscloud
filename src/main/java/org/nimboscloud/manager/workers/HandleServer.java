@@ -6,6 +6,7 @@ import static  org.nimboscloud.manager.services.TaggedConnection.FrameReceive;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
@@ -152,20 +153,18 @@ public class HandleServer implements Runnable{
                     PedidoInfo pedido = obterPedido(frame.tag);
                     addMemory(pedido.memPedido);
                     DataOutputStream outputStream = clientOutMap.get(pedido.cliente);
-                    outputStream.writeInt(frame.exp);
+
+                    String dataString = frame.exp + "|" + pedido.pedidoCliente + "|";
 
                     if (frame.exp == 1) {
-                        outputStream.writeInt(pedido.pedidoCliente);
-                        String response = "Could not compute the job.";
-                        outputStream.writeUTF(response);
-                        outputStream.flush();
+                        dataString += "Could not compute the job.";
 
                     } else {
-                        outputStream.writeInt(pedido.pedidoCliente);
-                        outputStream.writeInt(frame.data.length);
-                        outputStream.write(frame.data);
-                        outputStream.flush();
+                        dataString += frame.data.length + "|" + Arrays.toString(frame.data);
                     }
+
+                    outputStream.writeUTF(dataString);
+                    outputStream.flush();
 
                     lockQueue.lock();
                     waitQueue.signalAll();
