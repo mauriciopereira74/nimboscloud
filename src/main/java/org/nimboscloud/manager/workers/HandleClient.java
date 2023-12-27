@@ -3,7 +3,9 @@ package org.nimboscloud.manager.workers;
 import java.io.IOException;
 import java.net.Socket;
 import java.io.*;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.BlockingQueue;
@@ -14,14 +16,14 @@ public class HandleClient implements Runnable {
     private Socket socket;
     private AuthenticationManagerSkeleton authSkeleton;
     private int cliente;
-    public Map<Integer,BlockingQueue> listQueue = new HashMap<>();
+    public List<Object[]> listQueue = new ArrayList<>();
     public ReentrantLock lockList = new ReentrantLock();
 
-    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int cliente, Map<Integer, BlockingQueue> listQueue, ReentrantLock lockList) {
+    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int cliente, List<Object[]> listQueue, ReentrantLock lockList) {
         this.socket = s;
         this.authSkeleton = authSkeleton;
         this.cliente = cliente;
-        this.listQueue.putAll(listQueue);
+        this.listQueue = listQueue;
         this.lockList = lockList;
     }
 
@@ -42,6 +44,32 @@ public class HandleClient implements Runnable {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private BlockingQueue selectServer(int mem){
+        BlockingQueue lowestMemoryQueue = null;
+        int lowestMem = 0;
+
+        for (Object[] server : this.listQueue) {
+            if((int)server[0] < mem) {
+                continue;
+            }
+
+            if(((BlockingQueue)server[1]).size() == 0) {
+                return (BlockingQueue) server[1];
+            }
+
+            int accumulator = 0;
+            for (Object[] job : (BlockingQueue<Object[]>) server[1]) {
+                accumulator += (int) job[2];
+            }
+
+            if (lowestMem == 0 || accumulator < lowestMem) {
+                lowestMem = accumulator;
+                lowestMemoryQueue = (BlockingQueue<Object[]>) server[1];
+            }
+        }
+        return  lowestMemoryQueue;
     }
 
     public void handle_cliente(DataInputStream in, DataOutputStream out) {
@@ -71,11 +99,11 @@ public class HandleClient implements Runnable {
                         int tag = in.readInt();
                         int mem = in.readInt();
                         String data = in.readUTF();
-                        lockList.lock();
-                        BlockingQueue aux = listQueue.get(1000);
-                        if(aux!=null) {
-                                aux.add(new Object[]{cliente, tag, mem, data, out});
-                        }
+                        lockList.lock();   // o Lock está a funcionar ????
+
+                        BlockingQueue aux = selectServer(mem);
+                        System.out.println("mem = " + mem + "tag" + tag);
+                        aux.add(new Object[]{cliente, tag, mem, data, out});
                         lockList.unlock();
                     }
                     case 4 -> { // status

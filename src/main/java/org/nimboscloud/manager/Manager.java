@@ -8,6 +8,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +21,7 @@ import java.util.concurrent.BlockingQueue;
 
 public class Manager {
     public Map<Integer, DataOutputStream> clientOutMap = new HashMap<>();
-    public Map<Integer,BlockingQueue> listQueue = new HashMap<>();
+    public List<Object[]> listQueue = new ArrayList<>();
     public ReentrantLock lockList = new ReentrantLock();
 
     public static void main(String[] args) {

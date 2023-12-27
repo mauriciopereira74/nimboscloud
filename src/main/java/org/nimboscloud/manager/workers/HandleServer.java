@@ -6,13 +6,11 @@ import static  org.nimboscloud.manager.services.TaggedConnection.FrameReceive;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.Arrays;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.HashMap;
-import java.util.Map;
 
 public class HandleServer implements Runnable{
     public BlockingQueue<Object[]> queue = new LinkedBlockingQueue<>();
@@ -23,7 +21,7 @@ public class HandleServer implements Runnable{
     private Map<Integer, DataOutputStream> clientOutMap = new HashMap<>();
     private Map<Integer, PedidoInfo> pedidoMap = new HashMap<>();
 
-    private Map<Integer,BlockingQueue> listQueue = new HashMap<>();
+    public List<Object[]> listQueue = new ArrayList<>();
     public ReentrantLock lockList = new ReentrantLock();
 
     private int numPedido;
@@ -31,7 +29,7 @@ public class HandleServer implements Runnable{
     private int threadsOnWait = 0;
     private Socket socket;
 
-    public HandleServer(Socket socket,Map<Integer, DataOutputStream> clientOutMap, Map<Integer,BlockingQueue> listQueue, ReentrantLock lockList){
+    public HandleServer(Socket socket,Map<Integer, DataOutputStream> clientOutMap, List<Object[]> listQueue, ReentrantLock lockList){
         this.numPedido=1;
         this.socket=socket;
         this.clientOutMap = clientOutMap;
@@ -67,9 +65,17 @@ public class HandleServer implements Runnable{
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             TaggedConnection taggedConnection = new TaggedConnection(in,out);
             memory = in.readInt();
-            lockList.lock();
-            listQueue.put(1000,queue);
-            lockList.unlock();
+
+            Object[]  memoryServer = {memory,queue};
+            lockList.lock(); // ACHAMOS QUE ESTE LOCK NAO FAZ NADA
+            try {
+                listQueue.add(memoryServer);
+            } finally {
+                lockList.unlock();
+            }
+
+            System.out.println(listQueue);
+
             try {
                 Thread t = new Thread(() -> {
                     try {
@@ -134,7 +140,6 @@ public class HandleServer implements Runnable{
 
                 t.start();
         }
-
     }
 
 

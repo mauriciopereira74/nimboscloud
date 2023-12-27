@@ -146,7 +146,7 @@ public class Client {
 
         out.writeInt(3);
         out.writeInt(jobs);
-        out.writeInt(Integer.parseInt(parts[2]));
+        out.writeInt(Integer.  parseInt(parts[2]));
         out.writeUTF(parts[1]);
         out.flush();
 
@@ -159,6 +159,7 @@ public class Client {
 
         try {
             String full_string = in.readUTF();
+            System.out.println(full_string);
             String[] parts = full_string.split("\\|");
             // Extrair os valores
             int exp = Integer.parseInt(parts[0]);
