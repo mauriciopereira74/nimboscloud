@@ -17,7 +17,7 @@ public class HandleClient implements Runnable {
     private AuthenticationManagerSkeleton authSkeleton;
     private int cliente;
     public List<Object[]> listQueue = new ArrayList<>();
-    public ReentrantLock lockList = new ReentrantLock();
+    private ReentrantLock lockList = new ReentrantLock();
 
     public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int cliente, List<Object[]> listQueue, ReentrantLock lockList) {
         this.socket = s;
@@ -46,25 +46,35 @@ public class HandleClient implements Runnable {
         }
     }
 
+    private int addAllJobMem(BlockingQueue<Object[]> list){
+        int accumulator = 0;
+
+        for (Object[] job : list) {
+            accumulator += (int) job[2];
+        }
+
+        return accumulator;
+    }
+
     private BlockingQueue selectServer(int mem){
-        BlockingQueue lowestMemoryQueue = null;
-        int lowestMem = 0;
+        BlockingQueue lowestMemoryQueue = (BlockingQueue<Object[]>)this.listQueue.get(0)[1];
+        int lowestMem = addAllJobMem((BlockingQueue<Object[]>)this.listQueue.get(0)[1]);
 
         for (Object[] server : this.listQueue) {
             if((int)server[0] < mem) {
                 continue;
             }
 
-            if(((BlockingQueue)server[1]).size() == 0) {
+            if(((BlockingQueue)server[1]).isEmpty()) {
+                System.out.println("ENTREI NO IFFFFFFFF");
                 return (BlockingQueue) server[1];
             }
 
-            int accumulator = 0;
-            for (Object[] job : (BlockingQueue<Object[]>) server[1]) {
-                accumulator += (int) job[2];
-            }
+            int accumulator = addAllJobMem((BlockingQueue<Object[]>) server[1]);
 
-            if (lowestMem == 0 || accumulator < lowestMem) {
+            //System.out.println("accumolator: " + accumulator + "lowesMem" + lowestMem);
+
+            if (accumulator < lowestMem) {
                 lowestMem = accumulator;
                 lowestMemoryQueue = (BlockingQueue<Object[]>) server[1];
             }
@@ -102,8 +112,9 @@ public class HandleClient implements Runnable {
                         lockList.lock();   // o Lock está a funcionar ????
 
                         BlockingQueue aux = selectServer(mem);
-                        System.out.println("mem = " + mem + "tag" + tag);
+                        System.out.println("aqui está a queue antes do add: " + aux);
                         aux.add(new Object[]{cliente, tag, mem, data, out});
+                        System.out.println("aqui está a queue depois do add: " + aux);
                         lockList.unlock();
                     }
                     case 4 -> { // status

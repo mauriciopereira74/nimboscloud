@@ -22,7 +22,7 @@ public class HandleServer implements Runnable{
     private Map<Integer, PedidoInfo> pedidoMap = new HashMap<>();
 
     public List<Object[]> listQueue = new ArrayList<>();
-    public ReentrantLock lockList = new ReentrantLock();
+    private ReentrantLock lockList = new ReentrantLock();
 
     private int numPedido;
     private static int memory;
@@ -67,14 +67,12 @@ public class HandleServer implements Runnable{
             memory = in.readInt();
 
             Object[]  memoryServer = {memory,queue};
-            lockList.lock(); // ACHAMOS QUE ESTE LOCK NAO FAZ NADA
+            lockList.lock();
             try {
                 listQueue.add(memoryServer);
             } finally {
                 lockList.unlock();
             }
-
-            System.out.println(listQueue);
 
             try {
                 Thread t = new Thread(() -> {
@@ -108,28 +106,33 @@ public class HandleServer implements Runnable{
 
     public void handleServerIn(TaggedConnection taggedConnection,BlockingQueue<Object[]> queue) throws InterruptedException {
         while (true) {
-            Object[] element = queue.take();
-            int client = (int) element[0];
+            if(!queue.isEmpty()) {
+                System.out.println("a queue antes do peak: " + queue);
+                Object[] firsElement = queue.peek();
 
-            int tag = (int) element[1];
-
-            int memPedido = (int) element[2];
-            String full_string = (String) element[3];
-            byte[] taskCode = StringToByteArray(full_string);
-
-            DataOutputStream outPedido = (DataOutputStream) element[4];
-
-            int pedido = this.numPedido;
-            this.numPedido++;
-            clientOutMap.put(client, outPedido);
-
-                while (!this.startJob(memPedido)) {
+                while (!this.startJob((int) firsElement[2])) {
                     lockQueue.lock();
                     this.waitQueue.await();
                     lockQueue.unlock();
                 }
+
+                Object[] element = queue.take();
+                int client = (int) element[0];
+
+                int tag = (int) element[1];
+
+                int memPedido = (int) element[2];
+                String full_string = (String) element[3];
+                byte[] taskCode = StringToByteArray(full_string);
+
+                DataOutputStream outPedido = (DataOutputStream) element[4];
+
+                int pedido = this.numPedido;
+                this.numPedido++;
+                clientOutMap.put(client, outPedido);
+
                 Thread t = new Thread(() -> {
-                    adicionarPedido(pedido, client,tag,memPedido);
+                    adicionarPedido(pedido, client, tag, memPedido);
                     FrameSend frame = new FrameSend(pedido, taskCode);
                     try {
                         taggedConnection.sendS(frame);
@@ -139,6 +142,7 @@ public class HandleServer implements Runnable{
                 });
 
                 t.start();
+            }
         }
     }
 
