@@ -26,6 +26,7 @@ public class HandleServer implements Runnable{
 
     private int numPedido;
     private int memory = 0;
+    private int id;
     private int threadsOnWait = 0;
     private Socket socket;
 
@@ -66,13 +67,14 @@ public class HandleServer implements Runnable{
             TaggedConnection taggedConnection = new TaggedConnection(in,out);
             memory = in.readInt();
 
-            Object[]  memoryServer = {memory,queue};
+            Object[] memoryServer = {memory,queue};
             lockList.lock();
             try {
                 listQueue.add(memoryServer);
             } finally {
                 lockList.unlock();
             }
+            id = listQueue.indexOf(memoryServer);
 
             try {
                 Thread t = new Thread(() -> {
@@ -99,6 +101,8 @@ public class HandleServer implements Runnable{
 
             socket.shutdownOutput();
             socket.close();
+        } catch (IOException e) {
+            listQueue.remove(id);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -182,7 +186,7 @@ public class HandleServer implements Runnable{
 
     public byte[] StringToByteArray(String input){
 
-    String[] clean_Input = input.substring(1, input.length() - 1).split(",");
+    String[] clean_Input = input.substring(1, input.length() - 1).split(", ");
 
     byte[] byteArray = new byte[clean_Input.length];
 

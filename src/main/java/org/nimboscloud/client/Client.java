@@ -8,6 +8,9 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -154,7 +157,19 @@ public class Client {
         out.writeInt(3);
         out.writeInt(job);
         out.writeInt(Integer.  parseInt(parts[2]));
-        out.writeUTF(parts[1]);
+        byte[] byteArray =null;
+        try {
+            Path caminhoAbsoluto = Paths.get(parts[1]).toAbsolutePath();
+
+            // Ler todos os bytes do arquivo
+            byteArray = Files.readAllBytes(caminhoAbsoluto);
+
+            System.out.println(Arrays.toString(byteArray));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        out.writeUTF(Arrays.toString(byteArray));
         out.flush();
         sendlock.unlock();
 
@@ -165,20 +180,27 @@ public class Client {
 
     private void waitExec(TaggedConnection taggedConnection) throws IOException {
 
-            TaggedConnection.FrameReceiveClient frame = taggedConnection.receiveC();
+        TaggedConnection.FrameReceiveClient frame = taggedConnection.receiveC();
 
-            if (frame.exp == 1) {
+        if (frame.exp == 1) {
 
-                System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\nError: " + frame.messageException + '\n');
-            } else {
+            System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\nError: " + frame.messageException + '\n');
+        } else {
 
-                System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\n->" + Arrays.toString(frame.data) + '\n');
-            }
-
-
+            System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\n->" + Arrays.toString(frame.data) + '\n');
         }
 
+        String fileName = jobs + "Out.txt";
 
+        // Cria um caminho absoluto para o arquivo na mesma pasta do programa
+        Path caminhoAbsoluto = Paths.get(fileName).toAbsolutePath();
+
+        // Abre um FileOutputStream para escrever os bytes no arquivo
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
+            bos.write(frame.data);
+
+        }
+    }
 
     private static void authMenu(String username) {
         StringBuilder helpMenu = new StringBuilder();
