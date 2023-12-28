@@ -25,7 +25,7 @@ public class HandleServer implements Runnable{
     private ReentrantLock lockList = new ReentrantLock();
 
     private int numPedido;
-    private static int memory;
+    private int memory = 0;
     private int threadsOnWait = 0;
     private Socket socket;
 

@@ -112,12 +112,15 @@ public class HandleClient implements Runnable {
 
                         //BlockingQueue aux = selectServer(mem);
                         BlockingQueue aux;
+                        BlockingQueue<Object[]> firstQueue;
                         if(tag%2==0) {
-                            aux = (BlockingQueue<Object[]>)this.listQueue.get(0)[1];
+                            Object[] firstElement = listQueue.get(0);
+                            firstQueue = (BlockingQueue<Object[]>) firstElement[1];
                         } else{
-                            aux = (BlockingQueue<Object[]>)this.listQueue.get(1)[1];
+                            Object[] firstElement = listQueue.get(1);
+                            firstQueue = (BlockingQueue<Object[]>) firstElement[1];
                         }
-                        aux.add(new Object[]{cliente, tag, mem, data, out});
+                        firstQueue.add(new Object[]{cliente, tag, mem, data, out});
                         lockList.unlock();
                     }
                     case 4 -> { // status
