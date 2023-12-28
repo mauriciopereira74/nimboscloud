@@ -1,5 +1,7 @@
 package org.nimboscloud.client;
 
+import org.nimboscloud.manager.services.TaggedConnection;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -7,10 +9,12 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.io.*;
 import java.util.Arrays;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Client {
     private static String username;
     private static int jobs;
+    private static ReentrantLock sendlock = new ReentrantLock();
 
     public static void main(String[] args) {
         try {
@@ -18,7 +22,7 @@ public class Client {
 
             DataInputStream in = new DataInputStream(socket.getInputStream());
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-
+            TaggedConnection taggedConnection = new TaggedConnection(in,null);
             // Display help menu as soon as the client connects
             processHelp();
 
@@ -37,7 +41,7 @@ public class Client {
                     processHelp();
                     continue;
                 }
-                handle_command(parts, in, out);
+                handle_command(parts, in, out,taggedConnection);
 
             }
 
@@ -51,7 +55,7 @@ public class Client {
         }
     }
 
-    private static void handle_command(String[] parts, DataInputStream in, DataOutputStream out){
+    private static void handle_command(String[] parts, DataInputStream in, DataOutputStream out,TaggedConnection taggedConnection){
         try{
             if(parts[0].equals("register")){
                 out.writeInt(0);
@@ -72,7 +76,7 @@ public class Client {
                 if (flag) {
                     username = parts[1];
                     System.out.println("Login successful for user: " + username);
-                    processAuthenticatedMenu(in, out);
+                    processAuthenticatedMenu(in, out, taggedConnection);
                 }
                 else{
                     System.out.println("Login failed. Invalid credentials or user already logged in.\n");
@@ -88,7 +92,7 @@ public class Client {
     }
 
 
-    private static void processAuthenticatedMenu(DataInputStream in, DataOutputStream out) throws IOException, IOException {
+    private static void processAuthenticatedMenu(DataInputStream in, DataOutputStream out,TaggedConnection taggedConnection) throws IOException, IOException {
 
         authMenu(username);
         jobs = 0;
@@ -126,7 +130,7 @@ public class Client {
                     Thread t = new Thread(() -> {
                         try {
                             initExec(in, out, parts);
-                            waitExec(in,out);
+                            waitExec(taggedConnection);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -144,42 +148,35 @@ public class Client {
 
     private static void initExec(DataInputStream in, DataOutputStream out, String[] parts) throws IOException {
 
+        sendlock.lock();
         out.writeInt(3);
         out.writeInt(jobs);
         out.writeInt(Integer.  parseInt(parts[2]));
         out.writeUTF(parts[1]);
         out.flush();
+        sendlock.unlock();
 
         System.out.println(" | Pedido Com Tag: "+ jobs + " |");
         jobs = jobs +1;
 
     }
 
-    private static void waitExec(DataInputStream in, DataOutputStream out){
+    private static void waitExec(TaggedConnection taggedConnection) throws IOException {
 
-        try {
-            String full_string = in.readUTF();
-            System.out.println(full_string);
-            String[] parts = full_string.split("\\|");
-            // Extrair os valores
-            int exp = Integer.parseInt(parts[0]);
-            int pedidoCliente = Integer.parseInt(parts[1]);
+            TaggedConnection.FrameReceiveClient frame = taggedConnection.receiveC();
 
-            if (exp == 1) {
+            if (frame.exp == 1) {
 
-                String errorMsg = parts[2];
-                System.out.println("\nOutput Pedido com a Tag: " + pedidoCliente + "\nError: " + errorMsg + '\n');
+                System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\nError: " + frame.messageException + '\n');
             } else {
 
-                String data = parts[2];
-                System.out.println("\nOutput Pedido com a Tag: " + pedidoCliente + "\n->" + data + '\n');
+                System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\n->" + Arrays.toString(frame.data) + '\n');
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
+
         }
 
-    }
+
 
     private static void authMenu(String username) {
         StringBuilder helpMenu = new StringBuilder();

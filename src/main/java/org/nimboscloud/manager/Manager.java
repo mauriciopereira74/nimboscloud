@@ -20,7 +20,7 @@ import java.util.concurrent.BlockingQueue;
 
 
 public class Manager {
-    public Map<Integer, DataOutputStream> clientOutMap = new HashMap<>();
+    public Map<Integer, Object[]> clientOutMap = new HashMap<>();
     public List<Object[]> listQueue = new ArrayList<>();
     public ReentrantLock lockList = new ReentrantLock();
 
@@ -64,6 +64,7 @@ public class Manager {
         while (true) {
 
             Socket socket = ss.accept();
+
             Thread t = new Thread(new HandleClient(socket,authSkeleton,numCliente,listQueue,lockList));
             t.start();
             numCliente++;

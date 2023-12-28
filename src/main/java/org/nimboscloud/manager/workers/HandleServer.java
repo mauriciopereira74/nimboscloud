@@ -18,10 +18,10 @@ public class HandleServer implements Runnable{
     private ReentrantLock lockThreads = new ReentrantLock();
     private ReentrantLock lockQueue =  new ReentrantLock();
     private Condition waitQueue = lockQueue.newCondition();
-    private Map<Integer, DataOutputStream> clientOutMap = new HashMap<>();
+    private Map<Integer, Object[]> clientOutMap = new HashMap<>();
     private Map<Integer, PedidoInfo> pedidoMap = new HashMap<>();
 
-    public List<Object[]> listQueue = new ArrayList<>();
+    private List<Object[]> listQueue = new ArrayList<>();
     private ReentrantLock lockList = new ReentrantLock();
 
     private int numPedido;
@@ -29,7 +29,7 @@ public class HandleServer implements Runnable{
     private int threadsOnWait = 0;
     private Socket socket;
 
-    public HandleServer(Socket socket,Map<Integer, DataOutputStream> clientOutMap, List<Object[]> listQueue, ReentrantLock lockList){
+    public HandleServer(Socket socket,Map<Integer, Object[]> clientOutMap, List<Object[]> listQueue, ReentrantLock lockList){
         this.numPedido=1;
         this.socket=socket;
         this.clientOutMap = clientOutMap;
@@ -77,8 +77,8 @@ public class HandleServer implements Runnable{
             try {
                 Thread t = new Thread(() -> {
                     try {
-                        handleServerIn(taggedConnection,queue);
-                    } catch (InterruptedException e) {
+                        handleServerIn(in,taggedConnection);
+                    } catch (InterruptedException | IOException e) {
                         throw new RuntimeException(e);
                     }
                 });
@@ -104,10 +104,9 @@ public class HandleServer implements Runnable{
         }
     }
 
-    public void handleServerIn(TaggedConnection taggedConnection,BlockingQueue<Object[]> queue) throws InterruptedException {
+    public void handleServerIn(DataInputStream in,TaggedConnection taggedConnection) throws InterruptedException, IOException {
         while (true) {
             if(!queue.isEmpty()) {
-                System.out.println("a queue antes do peak: " + queue);
                 Object[] firsElement = queue.peek();
 
                 while (!this.startJob((int) firsElement[2])) {
@@ -129,7 +128,10 @@ public class HandleServer implements Runnable{
 
                 int pedido = this.numPedido;
                 this.numPedido++;
-                clientOutMap.put(client, outPedido);
+
+                TaggedConnection taggedConnection1 = new TaggedConnection(in,outPedido);
+
+                clientOutMap.putIfAbsent(client, new Object[]{outPedido,taggedConnection1});
 
                 Thread t = new Thread(() -> {
                     adicionarPedido(pedido, client, tag, memPedido);
@@ -154,29 +156,25 @@ public class HandleServer implements Runnable{
             FrameReceive frame = taggedConnection.receiveR();
 
             Thread t = new Thread(() -> {
+                PedidoInfo pedido = obterPedido(frame.tag);
+                addMemory(pedido.memPedido);
+                Object[] aux = clientOutMap.get(pedido.cliente);
+                TaggedConnection taggedConnection1 = (TaggedConnection) aux[1];
+                TaggedConnection.FrameReceiveClient frameClient;
+                if (frame.exp==0) {
+                    frameClient = new TaggedConnection.FrameReceiveClient(frame.exp, pedido.pedidoCliente, frame.data, null);
+                } else{
+                    frameClient = new TaggedConnection.FrameReceiveClient(frame.exp, pedido.pedidoCliente, null, "Could not compute the job.");
+                }
                 try {
-                    PedidoInfo pedido = obterPedido(frame.tag);
-                    addMemory(pedido.memPedido);
-                    DataOutputStream outputStream = clientOutMap.get(pedido.cliente);
-
-                    String dataString = frame.exp + "|" + pedido.pedidoCliente + "|";
-
-                    if (frame.exp == 1) {
-                        dataString += "Could not compute the job.";
-
-                    } else {
-                        dataString += Arrays.toString(frame.data);
-                    }
-
-                    outputStream.writeUTF(dataString);
-                    outputStream.flush();
-
-                    lockQueue.lock();
-                    waitQueue.signalAll();
-                    lockQueue.unlock();
+                    taggedConnection1.sendC(frameClient);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
+
+                lockQueue.lock();
+                waitQueue.signalAll();
+                lockQueue.unlock();
             });
             t.start();
         }

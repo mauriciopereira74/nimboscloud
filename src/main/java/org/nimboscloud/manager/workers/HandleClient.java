@@ -66,7 +66,6 @@ public class HandleClient implements Runnable {
             }
 
             if(((BlockingQueue)server[1]).isEmpty()) {
-                System.out.println("ENTREI NO IFFFFFFFF");
                 return (BlockingQueue) server[1];
             }
 
@@ -111,10 +110,14 @@ public class HandleClient implements Runnable {
                         String data = in.readUTF();
                         lockList.lock();   // o Lock está a funcionar ????
 
-                        BlockingQueue aux = selectServer(mem);
-                        System.out.println("aqui está a queue antes do add: " + aux);
+                        //BlockingQueue aux = selectServer(mem);
+                        BlockingQueue aux;
+                        if(tag%2==0) {
+                            aux = (BlockingQueue<Object[]>)this.listQueue.get(0)[1];
+                        } else{
+                            aux = (BlockingQueue<Object[]>)this.listQueue.get(1)[1];
+                        }
                         aux.add(new Object[]{cliente, tag, mem, data, out});
-                        System.out.println("aqui está a queue depois do add: " + aux);
                         lockList.unlock();
                     }
                     case 4 -> { // status

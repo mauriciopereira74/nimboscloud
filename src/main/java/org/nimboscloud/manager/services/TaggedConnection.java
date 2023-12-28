@@ -12,9 +12,15 @@ public class TaggedConnection implements AutoCloseable {
     private final DataInputStream input;
     private final DataOutputStream output;
 
-    private ReentrantLock sendlock = new ReentrantLock();
+    private ReentrantLock sendlockS = new ReentrantLock();
 
-    private ReentrantLock receivelock = new ReentrantLock();
+    private ReentrantLock sendlockC = new ReentrantLock();
+
+    private ReentrantLock sendlockR = new ReentrantLock();
+
+    private ReentrantLock receivelockR = new ReentrantLock();
+
+    private ReentrantLock receivelockS = new ReentrantLock();
     public static class FrameSend {
         public final int tag;
 
@@ -26,16 +32,29 @@ public class TaggedConnection implements AutoCloseable {
     public static class FrameReceive {
         public final int tag;
         public final int exp;
+
         public final byte[] data;
         public FrameReceive(int tag, int exp, byte[] data) { this.tag = tag; this.data = data; this.exp = exp;}
+
+    }
+
+    public static class FrameReceiveClient {
+        public final int exp;
+        public final int pedidoCliente;
+
+        public final byte[] data;
+
+        public final String messageException;
+        public FrameReceiveClient(int exp, int pedidoCliente, byte[] data, String messageException) { this.exp = exp; this.data = data; this.pedidoCliente = pedidoCliente; this.messageException = messageException;}
 
     }
     public TaggedConnection(DataInputStream in, DataOutputStream out) throws IOException {
         this.input= in;
         this.output= out;
     }
+
     public void sendS(FrameSend frame) throws IOException {
-        sendlock.lock();
+        sendlockS.lock();
         try{
             output.writeInt(frame.tag);
             output.writeInt(frame.data.length);
@@ -45,12 +64,12 @@ public class TaggedConnection implements AutoCloseable {
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
-            sendlock.unlock();
+            sendlockS.unlock();
         }
     }
 
     public void sendR (FrameReceive frame) throws IOException {
-        sendlock.lock();
+        sendlockR.lock();
         try{
             output.writeInt(frame.tag);
             output.writeInt(frame.exp);
@@ -63,12 +82,32 @@ public class TaggedConnection implements AutoCloseable {
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
-            sendlock.unlock();
+            sendlockR.unlock();
+        }
+    }
+
+    public void sendC (FrameReceiveClient frame) throws IOException {
+        sendlockC.lock();
+        try{
+            output.writeInt(frame.exp);
+            output.writeInt(frame.pedidoCliente);
+            if (frame.exp==0) {
+                output.writeInt(frame.data.length);
+                output.write(frame.data);
+            } else{
+                output.writeUTF(frame.messageException);
+            }
+            output.flush();
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            sendlockC.unlock();
         }
     }
 
     public FrameSend receiveS() throws IOException {
-        receivelock.lock();
+        receivelockS.lock();
         try {
             int tag = input.readInt();
             int length = input.readInt();
@@ -76,12 +115,12 @@ public class TaggedConnection implements AutoCloseable {
             input.readFully(data);
             return  new FrameSend(tag,data);
         } finally {
-            receivelock.unlock();
+            receivelockS.unlock();
         }
     }
 
     public FrameReceive receiveR() throws IOException {
-        receivelock.lock();
+        receivelockR.lock();
         try {
             int tag = input.readInt();
             int exp = input.readInt();
@@ -97,7 +136,31 @@ public class TaggedConnection implements AutoCloseable {
 
             return  new FrameReceive(tag,exp,data);
         } finally {
-            receivelock.unlock();
+            receivelockR.unlock();
+        }
+    }
+
+    public FrameReceiveClient receiveC() throws IOException {
+        sendlockC.lock();
+        try {
+            int exp = input.readInt();
+            int pedidoCliente = input.readInt();
+            byte[] data;
+            String exception;
+            if (exp==0) {
+                int length = input.readInt();
+                data = new byte[length];
+                input.readFully(data);
+                exception=null;
+            }
+            else {
+                data = null;
+                exception = input.readUTF();
+            }
+
+            return  new FrameReceiveClient(exp,pedidoCliente,data,exception);
+        } finally {
+            sendlockC.unlock();
         }
     }
     public void close() throws IOException {
