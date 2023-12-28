@@ -13,7 +13,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class Client {
     private static String username;
-    private static int jobs;
+    private int jobs=0;
     private static ReentrantLock sendlock = new ReentrantLock();
 
     public static void main(String[] args) {
@@ -41,7 +41,8 @@ public class Client {
                     processHelp();
                     continue;
                 }
-                handle_command(parts, in, out,taggedConnection);
+                Client client=new Client();
+                client.handle_command(parts, in, out,taggedConnection);
 
             }
 
@@ -55,7 +56,7 @@ public class Client {
         }
     }
 
-    private static void handle_command(String[] parts, DataInputStream in, DataOutputStream out,TaggedConnection taggedConnection){
+    private  void handle_command(String[] parts, DataInputStream in, DataOutputStream out,TaggedConnection taggedConnection){
         try{
             if(parts[0].equals("register")){
                 out.writeInt(0);
@@ -92,7 +93,7 @@ public class Client {
     }
 
 
-    private static void processAuthenticatedMenu(DataInputStream in, DataOutputStream out,TaggedConnection taggedConnection) throws IOException, IOException {
+    private void processAuthenticatedMenu(DataInputStream in, DataOutputStream out,TaggedConnection taggedConnection) throws IOException, IOException {
 
         authMenu(username);
         jobs = 0;
@@ -126,10 +127,11 @@ public class Client {
                 }
                 case "help" -> processHelp();
                 case "exec" -> {
-
+                    int job = jobs;
+                    jobs = jobs +1;
                     Thread t = new Thread(() -> {
                         try {
-                            initExec(in, out, parts);
+                            initExec(in, out, parts,job);
                             waitExec(taggedConnection);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -146,22 +148,22 @@ public class Client {
         }
     }
 
-    private static void initExec(DataInputStream in, DataOutputStream out, String[] parts) throws IOException {
+    private void initExec(DataInputStream in, DataOutputStream out, String[] parts, int job) throws IOException {
 
         sendlock.lock();
         out.writeInt(3);
-        out.writeInt(jobs);
+        out.writeInt(job);
         out.writeInt(Integer.  parseInt(parts[2]));
         out.writeUTF(parts[1]);
         out.flush();
         sendlock.unlock();
 
-        System.out.println(" | Pedido Com Tag: "+ jobs + " |");
-        jobs = jobs +1;
+        System.out.println(" | Pedido Com Tag: "+ job + " |");
+
 
     }
 
-    private static void waitExec(TaggedConnection taggedConnection) throws IOException {
+    private void waitExec(TaggedConnection taggedConnection) throws IOException {
 
             TaggedConnection.FrameReceiveClient frame = taggedConnection.receiveC();
 
