@@ -56,15 +56,14 @@ public class HandleClient implements Runnable {
         return accumulator;
     }
 
-    private BlockingQueue selectServer(int mem){
-        BlockingQueue lowestMemoryQueue = (BlockingQueue<Object[]>)this.listQueue.get(0)[1];
+    private BlockingQueue<Object[]> selectServer(int mem){
+        BlockingQueue<Object[]> lowestMemoryQueue = (BlockingQueue<Object[]>)this.listQueue.get(0)[1];
         int lowestMem = addAllJobMem((BlockingQueue<Object[]>)this.listQueue.get(0)[1]);
 
         for (Object[] server : this.listQueue) {
             if((int)server[0] < mem) {
                 continue;
             }
-
             if(((BlockingQueue)server[1]).isEmpty()) {
                 return (BlockingQueue) server[1];
             }
@@ -110,8 +109,8 @@ public class HandleClient implements Runnable {
                         String data = in.readUTF();
                         lockList.lock();   // o Lock está a funcionar ????
 
-                        //BlockingQueue aux = selectServer(mem);
-                        BlockingQueue aux;
+                        BlockingQueue<Object[]> aux = selectServer(mem);
+                        /*
                         BlockingQueue<Object[]> firstQueue;
                         if(tag%2==0) {
                             Object[] firstElement = listQueue.get(0);
@@ -120,7 +119,8 @@ public class HandleClient implements Runnable {
                             Object[] firstElement = listQueue.get(1);
                             firstQueue = (BlockingQueue<Object[]>) firstElement[1];
                         }
-                        firstQueue.add(new Object[]{cliente, tag, mem, data, out});
+                        */
+                        aux.add(new Object[]{cliente, tag, mem, data, out});
                         lockList.unlock();
                     }
                     case 4 -> { // status
