@@ -46,7 +46,7 @@ public class HandleClient implements Runnable {
         }
     }
 
-    private int addAllJobMem(BlockingQueue<Object[]> list){
+    private int addAllJobMem(List<Object[]> list){
         int accumulator = 0;
 
         for (Object[] job : list) {
@@ -56,27 +56,27 @@ public class HandleClient implements Runnable {
         return accumulator;
     }
 
-    private BlockingQueue<Object[]> selectServer(int mem){
-        BlockingQueue<Object[]> lowestMemoryQueue = (BlockingQueue<Object[]>)this.listQueue.get(0)[1];
-        int lowestMem = addAllJobMem((BlockingQueue<Object[]>)this.listQueue.get(0)[1]);
+    private List<Object[]> selectServer(int mem){
+        List<Object[]> lowestMemoryQueue = (List<Object[]>)this.listQueue.get(0)[1];
+        int lowestMem = addAllJobMem((List<Object[]>)((Object[])this.listQueue.get(0))[1]);
 
         for (Object[] server : this.listQueue) {
             if((int)server[0] < mem) {
                 continue;
             }
-            if(((BlockingQueue)server[1]).isEmpty()) {
-                return (BlockingQueue) server[1];
+            if(((List)server[1]).isEmpty()) {
+                return (List<Object[]>) server[1];
             }
-
-            int accumulator = addAllJobMem((BlockingQueue<Object[]>) server[1]);
+            int accumulator = addAllJobMem((List<Object[]>) server[1]);
 
             //System.out.println("accumolator: " + accumulator + "lowesMem" + lowestMem);
 
             if (accumulator < lowestMem) {
                 lowestMem = accumulator;
-                lowestMemoryQueue = (BlockingQueue<Object[]>) server[1];
+                lowestMemoryQueue = (List<Object[]>) server[1];
             }
         }
+
         return  lowestMemoryQueue;
     }
 
@@ -106,10 +106,12 @@ public class HandleClient implements Runnable {
                     case 3 -> { // exec
                         int tag = in.readInt();
                         int mem = in.readInt();
+                        int ager = 0;
                         String data = in.readUTF();
-                        lockList.lock();   // o Lock está a funcionar ????
+                        lockList.lock();
 
-                        BlockingQueue<Object[]> aux = selectServer(mem);
+                        List aux = selectServer(mem);
+
                         /*
                         BlockingQueue<Object[]> firstQueue;
                         if(tag%2==0) {
@@ -120,7 +122,7 @@ public class HandleClient implements Runnable {
                             firstQueue = (BlockingQueue<Object[]>) firstElement[1];
                         }
                         */
-                        aux.add(new Object[]{cliente, tag, mem, data, out});
+                        aux.add(new Object[]{cliente, tag, mem, data, out,ager});
                         lockList.unlock();
                     }
                     case 4 -> { // status

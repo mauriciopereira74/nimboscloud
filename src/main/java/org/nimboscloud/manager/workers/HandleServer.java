@@ -13,7 +13,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class HandleServer implements Runnable{
-    public BlockingQueue<Object[]> queue = new LinkedBlockingQueue<>();
+    public List<Object[]> waitList = new ArrayList<>();
     private ReentrantLock lockMemory = new ReentrantLock();
     private ReentrantLock lockThreads = new ReentrantLock();
     private ReentrantLock lockQueue =  new ReentrantLock();
@@ -67,7 +67,7 @@ public class HandleServer implements Runnable{
             TaggedConnection taggedConnection = new TaggedConnection(in,out);
             memory = in.readInt();
 
-            Object[] memoryServer = {memory,queue};
+            Object[] memoryServer = {memory,waitList};
             lockList.lock();
             try {
                 listQueue.add(memoryServer);
@@ -108,18 +108,37 @@ public class HandleServer implements Runnable{
         }
     }
 
+    public Object[] getNextJob() throws InterruptedException {
+        Object[] result = (Object[]) waitList.get(0);
+        int lowestMem = (int)waitList.get(0)[5];
+
+        for (Object[] element : waitList) {
+            if ((int) element[5] == 3) {
+                result = element;
+                break;
+            }
+            if ((int) element[3] < lowestMem) {
+                lowestMem =(int) element[3];
+                result = element;
+            }
+        }
+
+        waitList.remove(result);
+        return result;
+    }
+
+
     public void handleServerIn(DataInputStream in,TaggedConnection taggedConnection) throws InterruptedException, IOException {
         while (true) {
-            if(!queue.isEmpty()) {
-                Object[] firsElement = queue.peek();
 
-                while (!this.startJob((int) firsElement[2])) {
-                    lockQueue.lock();
+                Object[] element = getNextJob();
+
+                lockQueue.lock();
+                while (!this.startJob((int)element[3])) {
                     this.waitQueue.await();
-                    lockQueue.unlock();
                 }
+                lockQueue.unlock();
 
-                Object[] element = queue.take();
                 int client = (int) element[0];
 
                 int tag = (int) element[1];
@@ -133,9 +152,9 @@ public class HandleServer implements Runnable{
                 int pedido = this.numPedido;
                 this.numPedido++;
 
-                TaggedConnection taggedConnection1 = new TaggedConnection(in,outPedido);
+                TaggedConnection taggedConnection1 = new TaggedConnection(in, outPedido);
 
-                clientOutMap.putIfAbsent(client, new Object[]{outPedido,taggedConnection1});
+                clientOutMap.putIfAbsent(client, new Object[]{outPedido, taggedConnection1});
 
                 Thread t = new Thread(() -> {
                     adicionarPedido(pedido, client, tag, memPedido);
@@ -150,7 +169,7 @@ public class HandleServer implements Runnable{
                 t.start();
             }
         }
-    }
+    
 
 
     public void handleServerOut(TaggedConnection taggedConnection) throws IOException {

@@ -192,10 +192,8 @@ public class Client {
 
         String fileName = jobs + "Out.txt";
 
-        // Cria um caminho absoluto para o arquivo na mesma pasta do programa
         Path caminhoAbsoluto = Paths.get(fileName).toAbsolutePath();
 
-        // Abre um FileOutputStream para escrever os bytes no arquivo
         try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
             bos.write(frame.data);
 
