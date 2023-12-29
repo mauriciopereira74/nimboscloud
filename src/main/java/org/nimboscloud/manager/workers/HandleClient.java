@@ -8,23 +8,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.BlockingQueue;
 
+import org.nimboscloud.manager.services.QueueList;
 import org.nimboscloud.manager.skeletons.AuthenticationManagerSkeleton;
 
 public class HandleClient implements Runnable {
     private Socket socket;
     private AuthenticationManagerSkeleton authSkeleton;
     private int cliente;
-    public List<Object[]> listQueue = new ArrayList<>();
-    private ReentrantLock lockList = new ReentrantLock();
+    private QueueList queueList;
 
-    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int cliente, List<Object[]> listQueue, ReentrantLock lockList) {
+    private ReentrantLock readLock = new ReentrantLock();
+
+    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int cliente, QueueList queueList) {
         this.socket = s;
         this.authSkeleton = authSkeleton;
         this.cliente = cliente;
-        this.listQueue = listQueue;
-        this.lockList = lockList;
+        this.queueList = queueList;
     }
 
     public void run() {
@@ -56,35 +56,36 @@ public class HandleClient implements Runnable {
         return accumulator;
     }
 
-    private List<Object[]> selectServer(int mem){
-        List<Object[]> lowestMemoryQueue = (List<Object[]>)this.listQueue.get(0)[1];
-        int lowestMem = addAllJobMem((List<Object[]>)((Object[])this.listQueue.get(0))[1]);
-
-        for (Object[] server : this.listQueue) {
-            if((int)server[0] < mem) {
-                continue;
-            }
-            if(((List)server[1]).isEmpty()) {
-                return (List<Object[]>) server[1];
-            }
-            int accumulator = addAllJobMem((List<Object[]>) server[1]);
-
-            //System.out.println("accumolator: " + accumulator + "lowesMem" + lowestMem);
-
-            if (accumulator < lowestMem) {
-                lowestMem = accumulator;
-                lowestMemoryQueue = (List<Object[]>) server[1];
-            }
-        }
-
-        return  lowestMemoryQueue;
-    }
+//    private List<Object[]> selectServer(int mem){
+//        List<Object[]> lowestMemoryQueue = (List<Object[]>)this.listQueue.get(0)[1];
+//        int lowestMem = addAllJobMem((List<Object[]>)((Object[])this.listQueue.get(0))[1]);
+//
+//        for (Object[] server : this.listQueue) {
+//            if((int)server[0] < mem) {
+//                continue;
+//            }
+//            if(((List)server[1]).isEmpty()) {
+//                return (List<Object[]>) server[1];
+//            }
+//            int accumulator = addAllJobMem((List<Object[]>) server[1]);
+//
+//            //System.out.println("accumolator: " + accumulator + "lowesMem" + lowestMem);
+//
+//            if (accumulator < lowestMem) {
+//                lowestMem = accumulator;
+//                lowestMemoryQueue = (List<Object[]>) server[1];
+//            }
+//        }
+//
+//        return  lowestMemoryQueue;
+//    }
 
     public void handle_cliente(DataInputStream in, DataOutputStream out) {
         while (true) {
 
             try {
                 int command;
+                readLock.lock();
                 command = in.readInt();
                 boolean flag;
 
@@ -92,38 +93,29 @@ public class HandleClient implements Runnable {
                     case 0 -> { // register
                         String username = in.readUTF();
                         String password = in.readUTF();
-                        flag = authSkeleton.processRegister(username, password, out);
+                        authSkeleton.processRegister(username, password, out);
                     }
                     case 1 -> { //login
+                        readLock.lock();
                         String username = in.readUTF();
                         String password = in.readUTF();
-                        flag = authSkeleton.processLogin(username, password, out);
+                        readLock.unlock();
+                        authSkeleton.processLogin(username, password, out);
                     }
                     case 2 -> { // logout
                         String username = in.readUTF();
-                        flag = authSkeleton.processLogout(username, out);
+                        authSkeleton.processLogout(username, out);
                     }
                     case 3 -> { // exec
                         int tag = in.readInt();
                         int mem = in.readInt();
                         int ager = 0;
                         String data = in.readUTF();
-                        lockList.lock();
 
-                        List aux = selectServer(mem);
+                        Object[] objeto = new Object[]{cliente, tag, mem, data, out,ager};
 
-                        /*
-                        BlockingQueue<Object[]> firstQueue;
-                        if(tag%2==0) {
-                            Object[] firstElement = listQueue.get(0);
-                            firstQueue = (BlockingQueue<Object[]>) firstElement[1];
-                        } else{
-                            Object[] firstElement = listQueue.get(1);
-                            firstQueue = (BlockingQueue<Object[]>) firstElement[1];
-                        }
-                        */
-                        aux.add(new Object[]{cliente, tag, mem, data, out,ager});
-                        lockList.unlock();
+                        queueList.escolheQueue(objeto);
+
                     }
                     case 4 -> { // status
 
@@ -140,6 +132,46 @@ public class HandleClient implements Runnable {
     public int getCliente(){
         return this.cliente;
     }
+
+
+    public void readRegister(DataInputStream in, DataOutputStream out) throws IOException {
+        readLock.lock();
+        String username = in.readUTF();
+        String password = in.readUTF();
+        authSkeleton.processRegister(username, password, out);
+        readLock.unlock();
+    }
+
+    public void readLogin(DataInputStream in, DataOutputStream out) throws IOException {
+        readLock.lock();
+        String username = in.readUTF();
+        String password = in.readUTF();
+        readLock.unlock();
+        authSkeleton.processLogin(username, password, out);
+    }
+
+    public void readLogout(DataInputStream in, DataOutputStream out) throws IOException {
+        readLock.lock();
+        String username = in.readUTF();
+        authSkeleton.processLogout(username, out);
+        readLock.unlock();
+    }
+
+    public void readExec(DataInputStream in, DataOutputStream out) throws IOException {
+        readLock.lock();
+        int tag = in.readInt();
+        int mem = in.readInt();
+        int ager = 0;
+        String data = in.readUTF();
+        readLock.unlock();
+
+        Object[] objeto = new Object[]{cliente, tag, mem, data, out,ager};
+
+        queueList.escolheQueue(objeto);
+
+
+    }
+
 
 
 }

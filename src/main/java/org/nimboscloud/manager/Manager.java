@@ -1,4 +1,6 @@
 package org.nimboscloud.manager;
+import org.nimboscloud.manager.services.QueueConnection;
+import org.nimboscloud.manager.services.QueueList;
 import org.nimboscloud.manager.workers.HandleClient;
 import org.nimboscloud.manager.services.AuthenticationManager;
 import org.nimboscloud.manager.skeletons.AuthenticationManagerSkeleton;
@@ -12,16 +14,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.BlockingQueue;
 
 
 
 public class Manager {
     public Map<Integer, Object[]> clientOutMap = new HashMap<>();
-    public List<Object[]> listQueue = new ArrayList<>();
+    public QueueList queueList = new QueueList();
     public ReentrantLock lockList = new ReentrantLock();
 
     public static void main(String[] args) {
@@ -65,7 +65,7 @@ public class Manager {
 
             Socket socket = ss.accept();
 
-            Thread t = new Thread(new HandleClient(socket,authSkeleton,numCliente,listQueue,lockList));
+            Thread t = new Thread(new HandleClient(socket,authSkeleton,numCliente,queueList));
             t.start();
             numCliente++;
 
@@ -78,7 +78,7 @@ public class Manager {
         while (true) {
 
             Socket socket = ss.accept();
-            Thread t = new Thread(new HandleServer(socket,clientOutMap,listQueue,lockList));
+            Thread t = new Thread(new HandleServer(socket,clientOutMap,queueList));
 
             t.start();
 

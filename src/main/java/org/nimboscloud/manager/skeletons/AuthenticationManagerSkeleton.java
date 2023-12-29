@@ -12,7 +12,7 @@ public class AuthenticationManagerSkeleton {
         this.authManager = authManager;
     }
 
-    public boolean processCommand(String[] parts, DataOutputStream out) {
+    public void processCommand(String[] parts, DataOutputStream out) {
         try{
             String command = parts[0];
             String user = parts[1];
@@ -20,11 +20,11 @@ public class AuthenticationManagerSkeleton {
 
             switch (command) {
                 case "register":
-                    return processRegister(user, pass, out);
+                    processRegister(user, pass, out);
                 case "login":
-                    return processLogin(user, pass, out);
+                    processLogin(user, pass, out);
                 case "logout":
-                    return processLogout(user, out);
+                    processLogout(user, out);
                 default:
                     out.writeUTF("Unknown command. Type 'help' for a list of commands.");
                     out.flush();
@@ -32,7 +32,6 @@ public class AuthenticationManagerSkeleton {
         } catch (IOException e){
             e.printStackTrace();
         }
-        return false;
     }
 
     public boolean processRegister(String username, String password, DataOutputStream out) {
@@ -55,7 +54,7 @@ public class AuthenticationManagerSkeleton {
         return false;
     }
 
-    public boolean processLogin(String username, String password, DataOutputStream out) {
+    public void processLogin(String username, String password, DataOutputStream out) {
         try{
 
             boolean loginSuccess = authManager.loginUser(username, password);
@@ -63,7 +62,6 @@ public class AuthenticationManagerSkeleton {
             if (loginSuccess) {
                 out.writeBoolean(true);
                 out.flush();
-                return true;
             } else {
                 out.writeBoolean(false);
                 out.flush();
@@ -72,7 +70,6 @@ public class AuthenticationManagerSkeleton {
         } catch (IOException e){
             e.printStackTrace();
         }
-        return false;
     }
 
     public boolean processLogout(String username, DataOutputStream out) {

@@ -60,6 +60,7 @@ public class Client {
     }
 
     private  void handle_command(String[] parts, DataInputStream in, DataOutputStream out,TaggedConnection taggedConnection){
+
         try{
             if(parts[0].equals("register")){
                 out.writeInt(0);
@@ -181,23 +182,27 @@ public class Client {
     private void waitExec(TaggedConnection taggedConnection) throws IOException {
 
         TaggedConnection.FrameReceiveClient frame = taggedConnection.receiveC();
-
-        if (frame.exp == 1) {
-
-            System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\nError: " + frame.messageException + '\n');
-        } else {
-
-            System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\n->" + Arrays.toString(frame.data) + '\n');
-        }
-
         String fileName = jobs + "Out.txt";
 
         Path caminhoAbsoluto = Paths.get(fileName).toAbsolutePath();
 
-        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
-            bos.write(frame.data);
+        if (frame.exp == 1) {
 
+            System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\nError: " + frame.messageException + '\n');
+            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
+                bos.write(frame.messageException.getBytes());
+
+            }
+        } else {
+
+            System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\n->" + Arrays.toString(frame.data) + '\n');
+            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
+                bos.write(frame.data);
+
+            }
         }
+
+
     }
 
     private static void authMenu(String username) {
