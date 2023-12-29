@@ -117,7 +117,7 @@ public class HandleServer implements Runnable{
                 result = element;
                 break;
             }
-            if ((int) element[3] < lowestMem) {
+            if ((int) element[2] < lowestMem) {
                 lowestMem =(int) element[3];
                 result = element;
             }
@@ -131,10 +131,14 @@ public class HandleServer implements Runnable{
     public void handleServerIn(DataInputStream in,TaggedConnection taggedConnection) throws InterruptedException, IOException {
         while (true) {
 
+            System.out.println("wait list" + waitList.isEmpty());
+            if (!waitList.isEmpty()) {
                 Object[] element = getNextJob();
 
+                //System.out.println("tag" + element[2] + "mem"  + element[3]);
+
                 lockQueue.lock();
-                while (!this.startJob((int)element[3])) {
+                while (!this.startJob((int) element[2])) {
                     this.waitQueue.await();
                 }
                 lockQueue.unlock();
@@ -169,6 +173,7 @@ public class HandleServer implements Runnable{
                 t.start();
             }
         }
+    }
     
 
 
