@@ -34,7 +34,7 @@ public class AuthenticationManagerSkeleton {
         }
     }
 
-    public boolean processRegister(String username, String password, DataOutputStream out) {
+    public void processRegister(String username, String password, DataOutputStream out) {
         try{
 
             boolean registrationSuccess = authManager.registerUser(username, password);
@@ -42,7 +42,6 @@ public class AuthenticationManagerSkeleton {
             if (registrationSuccess) {
                 out.writeBoolean(true);
                 out.flush();
-                return true;
             } else {
                 out.writeBoolean(false);
                 out.flush();
@@ -51,7 +50,6 @@ public class AuthenticationManagerSkeleton {
         }catch (IOException e){
             e.printStackTrace();
         }
-        return false;
     }
 
     public void processLogin(String username, String password, DataOutputStream out) {
@@ -72,15 +70,12 @@ public class AuthenticationManagerSkeleton {
         }
     }
 
-    public boolean processLogout(String username, DataOutputStream out) {
+    public void processLogout(String username, DataOutputStream out) {
         try{
-
             boolean logoutSuccess = authManager.logoutUser(username);
-
             if (logoutSuccess) {
                 out.writeBoolean(true);
                 out.flush();
-                return true;
             } else {
                 out.writeBoolean(false);
                 out.flush();
@@ -89,7 +84,6 @@ public class AuthenticationManagerSkeleton {
         }catch (IOException e){
                     e.printStackTrace();
         }
-        return false;
     }
 
 

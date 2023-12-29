@@ -114,8 +114,8 @@ public class Client {
                     out.writeInt(2);
                     out.writeUTF(username);
                     out.flush();
-                    int response = in.readInt();
-                    if (response == 1) {
+                    boolean response = in.readBoolean();
+                    if (response) {
                         System.out.println("Logout successful for user: " + username);
                         for (int i = 0; i < 3; ++i) System.out.println();
                         processHelp();

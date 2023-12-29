@@ -20,10 +20,10 @@ public class HandleClient implements Runnable {
 
     private ReentrantLock readLock = new ReentrantLock();
 
-    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int cliente, QueueList queueList) {
+    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int client, QueueList queueList) {
         this.socket = s;
         this.authSkeleton = authSkeleton;
-        this.cliente = cliente;
+        this.cliente = client;
         this.queueList = queueList;
     }
 
@@ -85,7 +85,6 @@ public class HandleClient implements Runnable {
 
             try {
                 int command;
-                readLock.lock();
                 command = in.readInt();
                 boolean flag;
 
@@ -96,10 +95,8 @@ public class HandleClient implements Runnable {
                         authSkeleton.processRegister(username, password, out);
                     }
                     case 1 -> { //login
-                        readLock.lock();
                         String username = in.readUTF();
                         String password = in.readUTF();
-                        readLock.unlock();
                         authSkeleton.processLogin(username, password, out);
                     }
                     case 2 -> { // logout
@@ -107,6 +104,7 @@ public class HandleClient implements Runnable {
                         authSkeleton.processLogout(username, out);
                     }
                     case 3 -> { // exec
+                        System.out.println(queueList.getList().size());
                         int tag = in.readInt();
                         int mem = in.readInt();
                         int ager = 0;

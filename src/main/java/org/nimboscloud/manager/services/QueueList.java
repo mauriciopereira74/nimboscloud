@@ -5,41 +5,91 @@ import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class QueueList implements AutoCloseable{
+public class QueueList implements AutoCloseable {
 
     private List<QueueConnection> list = new ArrayList<>();
 
     private ReentrantLock lockList = new ReentrantLock();
 
-    public QueueList(){
+    public QueueList() {
 
     }
-
-    public void addQueue(QueueConnection queue){
+    public List<QueueConnection> getList(){
+        return list;
+    }
+    public void addQueue(QueueConnection queue) {
         lockList.lock();
         list.add(queue);
         lockList.unlock();
     }
-    public void remQueue(QueueConnection queue){
+
+    public void remQueue(QueueConnection queue) {
         lockList.lock();
         list.remove(queue);
         lockList.unlock();
     }
 
-    public void escolheQueue(Object[] pedido){
+    public void escolheQueue(Object[] pedido) {
+
+        List<Integer> listAux = new ArrayList<>();
+        boolean flag = false;
+        int mem = (int) pedido[2];
+
         lockList.lock();
-        this.list.get(0).add(pedido);
-        ReentrantLock lock = this.list.get(0).getLock();
-        Condition condition = this.list.get(0).getCondition();
-        lock.lock();
-        condition.signalAll();
-        lock.unlock();
+
+        for (QueueConnection queue : list) {
+            if (mem <= queue.getMemory()) {
+                flag = true;
+                ReentrantLock lock = queue.getLock();
+                Condition condition = queue.getCondition();
+                queue.add(pedido);
+                queue.addMemoryonWait(mem);
+                lock.lock();
+                condition.signalAll();
+                lock.unlock();
+                break;
+            }
+            if (mem <= queue.getMaxMemory()) {
+                listAux.add(queue.getMemoryOnWait());
+            } else{
+                listAux.add(null);
+            }
+        }
+
+        if (!flag) {
+
+            int minIndex = 0; // Assumindo que o primeiro elemento é o menor inicialmente
+
+            for (int i = 1; i < listAux.size(); i++) {
+                if (listAux.get(i) != null && listAux.get(minIndex) != null) {
+
+                    if (listAux.get(i).compareTo(listAux.get(minIndex)) < 0) {
+
+                        minIndex = i;
+                    }
+                } else if (listAux.get(i) != null && listAux.get(minIndex) == null) {
+
+                    minIndex = i;
+                }
+            }
+            ReentrantLock lock = list.get(minIndex).getLock();
+            Condition condition = list.get(minIndex).getCondition();
+            list.get(minIndex).add(pedido);
+            list.get(minIndex).addMemoryonWait(mem);
+            lock.lock();
+            condition.signalAll();
+            lock.unlock();
+
+
+        }
+
         lockList.unlock();
+        
     }
-
-
     @Override
     public void close() throws Exception {
 
     }
 }
+
+

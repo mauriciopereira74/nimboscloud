@@ -16,7 +16,8 @@ public class QueueConnection implements AutoCloseable {
     private int threadsonWait=0;
     private int threadsExcuting=0;
     private int memory=0;
-
+    private int maxMemory=0;
+    private int memoryOnWait=0;
     private ReentrantLock lockMemory = new ReentrantLock();
 
     public QueueConnection(){
@@ -90,23 +91,48 @@ public class QueueConnection implements AutoCloseable {
         lockMemory.unlock();
     }
 
+    public void addMemoryonWait(int mem){
+        lockMemory.lock();
+        memoryOnWait = memoryOnWait + mem;
+        lockMemory.unlock();
+    }
+
     public void rmMemory(int mem){
         lockMemory.lock();
         memory = memory - mem;
         lockMemory.unlock();
     }
 
-    public int getMemory(){
+    public void rmMemoryonWait(int mem){
         lockMemory.lock();
-        int mem = memory;
+        memoryOnWait = memoryOnWait - mem;
         lockMemory.unlock();
-        return mem;
+    }
+
+    public int getMemory(){
+        try {
+            lockMemory.lock();
+            return memory;
+        }finally {
+            lockMemory.unlock();
+        }
+    }
+    public int getMemoryOnWait(){
+        try {
+            lockMemory.lock();
+            return memoryOnWait;
+        }finally {
+            lockMemory.unlock();
+        }
     }
 
     public void setMemory(int mem){
-        lockMemory.lock();
         memory = mem;
-        lockMemory.unlock();
+        maxMemory = mem;
+    }
+
+    public int getMaxMemory(){
+        return maxMemory;
     }
 
     public boolean startJob(int mem){
@@ -114,6 +140,7 @@ public class QueueConnection implements AutoCloseable {
             lockMemory.lock();
             if(mem <= this.getMemory()){
                 this.rmMemory(mem);
+                this.rmMemoryonWait(mem);
                 return true;
             }else{
                 return false;
