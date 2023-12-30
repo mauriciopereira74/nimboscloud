@@ -16,7 +16,6 @@ public class HandleServer implements Runnable{
 
     private ReentrantLock lockJob = new ReentrantLock();
     private Condition conditionlockJob = lockJob.newCondition();
-
     private ReentrantLock lockElement = new ReentrantLock();
     public Object[] element;
     private ReentrantLock lockQueue;
@@ -24,8 +23,6 @@ public class HandleServer implements Runnable{
     private Map<Integer, Object[]> clientOutMap = new HashMap<>();
     private Map<Integer, PedidoInfo> pedidoMap = new HashMap<>();
     private QueueList queueList;
-
-    private boolean stopThread=false;
 
     private int numPedido;
     private Socket socket;
@@ -105,10 +102,9 @@ public class HandleServer implements Runnable{
 
 
     public void handleServerIn(DataInputStream in,TaggedConnection taggedConnection) throws InterruptedException, IOException {
+        lockQueue = queueConnection.getLock();
+        waitQueue = queueConnection.getCondition();
         while (true) {
-
-            lockQueue = queueConnection.getLock();
-            waitQueue = queueConnection.getCondition();
 
             while (queueConnection.isEmpty()) {
                 lockQueue.lock();
@@ -119,36 +115,46 @@ public class HandleServer implements Runnable{
             element = queueConnection.getNextJob();
             lockElement.unlock();
 
-            System.out.println("tag -> " + element[1] + "mem -> " + element[2] + "ager -> " + element[5]);
-
-
+            //System.out.println("tag -> " + element[1] + "mem -> " + element[2] + "ager -> " + element[5]);
             Thread h = new Thread(() -> {
-                while(!stopThread) {
+                while(queueConnection.getControl()==0) {
+                    int x=0;
                     lockQueue.lock();
                     try {
                         waitQueue.await();
+
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                     lockElement.lock();
                     try {
-                        element = queueConnection.getNextJob();
+
+                        if (!queueConnection.isEmpty()){
+                            x=1;
+                            element = queueConnection.getNextJob();
+                        }
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-                    lockElement.unlock();
-                    if((int)element[5]==4) {
-                        break;
+                    if(x==1) {
+                        System.out.println(element[1]);
+                        if ((int) element[5] == 8) {
+                            lockElement.unlock();
+                            lockQueue.unlock();
+                            break;
+                        }
                     }
+                    lockElement.unlock();
                     lockQueue.unlock();
                 }
             });
 
-            h.start();
-
+            int r=0;
             while (!this.queueConnection.startJob((int)element[2],lockElement)) {
                 try {
                     lockJob.lock();
+                    if(r==0) h.start();
+                    r=r+1;
                     conditionlockJob.await();
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
@@ -156,23 +162,29 @@ public class HandleServer implements Runnable{
                 lockJob.unlock();
             }
             queueConnection.rem(element);
-            lockElement.unlock();
-            stopThread = true;
+            Object[] elementAux = element;
+            queueConnection.setControl(1);
+            lockQueue.lock();
             waitQueue.signalAll();
+            lockQueue.unlock();
+            lockElement.unlock();
+
             h.join();
+            queueConnection.setControl(0);
+            //System.out.println(elementAux[1]);
 
             Thread t = new Thread(() -> {
 
 
-                int client = (int) element[0];
+                int client = (int) elementAux[0];
 
-                int tag = (int) element[1];
+                int tag = (int) elementAux[1];
 
-                int memPedido = (int) element[2];
-                String full_string = (String) element[3];
+                int memPedido = (int) elementAux[2];
+                String full_string = (String) elementAux[3];
                 byte[] taskCode = StringToByteArray(full_string);
 
-                DataOutputStream outPedido = (DataOutputStream) element[4];
+                DataOutputStream outPedido = (DataOutputStream) elementAux[4];
 
                 int pedido = this.numPedido;
                 this.numPedido++;

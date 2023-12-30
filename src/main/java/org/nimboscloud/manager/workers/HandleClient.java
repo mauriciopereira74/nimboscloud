@@ -104,7 +104,6 @@ public class HandleClient implements Runnable {
                         authSkeleton.processLogout(username, out);
                     }
                     case 3 -> { // exec
-                        System.out.println(queueList.getList().size());
                         int tag = in.readInt();
                         int mem = in.readInt();
                         int ager = 0;

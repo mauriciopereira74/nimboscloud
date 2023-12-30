@@ -18,6 +18,7 @@ public class QueueConnection implements AutoCloseable {
     private int memory=0;
     private int maxMemory=0;
     private int memoryOnWait=0;
+    private int control=0;
     private ReentrantLock lockMemory = new ReentrantLock();
 
     public QueueConnection(){
@@ -131,31 +132,43 @@ public class QueueConnection implements AutoCloseable {
         maxMemory = mem;
     }
 
+    public int getControl(){
+        return control;
+    }
+    public void setControl(int c){
+        control = c;
+    }
+
     public int getMaxMemory(){
         return maxMemory;
     }
 
     public Object[] getNextJob() throws InterruptedException {
-        lockQueue.lock();
-        Object[] result = (Object[]) listQueue.get(0);
-        int lowestMem = (int)listQueue.get(0)[2];
+        try {
+            lockQueue.lock();
+            Object[] result = (Object[]) listQueue.get(0);
+            int lowestMem = (int) listQueue.get(0)[2];
 
-        for (Object[] element : listQueue) {
-            if ((int) element[5] == 4) {
-                result = element;
-                break;
-            }
-            if ((int) element[2] < lowestMem) {
-                lowestMem =(int) element[2];
-                result = element;
+            for (Object[] element : listQueue) {
+                if ((int) element[5] == 8) {
+                    result = element;
+                    break;
+                }
+                if ((int) element[2] < lowestMem) {
+                    lowestMem = (int) element[2];
+                    result = element;
+                }
+
+                element[5] = (int) element[5] + 1;
             }
 
-            element[5] = (int)element[5] + 1;
+            return result;
+
+        }finally {
+            lockQueue.unlock();
         }
 
-        return result;
-
-        }
+    }
 
 
 
