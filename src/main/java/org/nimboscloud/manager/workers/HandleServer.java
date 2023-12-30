@@ -17,12 +17,15 @@ public class HandleServer implements Runnable{
     private ReentrantLock lockJob = new ReentrantLock();
     private Condition conditionlockJob = lockJob.newCondition();
 
-
+    private ReentrantLock lockElement = new ReentrantLock();
+    public Object[] element;
     private ReentrantLock lockQueue;
     private Condition waitQueue;
     private Map<Integer, Object[]> clientOutMap = new HashMap<>();
     private Map<Integer, PedidoInfo> pedidoMap = new HashMap<>();
     private QueueList queueList;
+
+    private boolean stopThread=false;
 
     private int numPedido;
     private Socket socket;
@@ -100,25 +103,6 @@ public class HandleServer implements Runnable{
         }
     }
 
-//    public Object[] getNextJob() throws InterruptedException {
-//        Object[] result = (Object[]) waitList.get(0);
-//        int lowestMem = (int)waitList.get(0)[5];
-//
-//        for (Object[] element : waitList) {
-//            if ((int) element[5] == 3) {
-//                result = element;
-//                break;
-//            }
-//            if ((int) element[2] < lowestMem) {
-//                lowestMem =(int) element[3];
-//                result = element;
-//            }
-//        }
-//
-//        waitList.remove(result);
-//        return result;
-//    }
-
 
     public void handleServerIn(DataInputStream in,TaggedConnection taggedConnection) throws InterruptedException, IOException {
         while (true) {
@@ -131,19 +115,54 @@ public class HandleServer implements Runnable{
                 waitQueue.await();
                 lockQueue.unlock();
             }
-            Object[] element = queueConnection.getOne();
-            Thread t = new Thread(() -> {
+            lockElement.lock();
+            element = queueConnection.getNextJob();
+            lockElement.unlock();
+
+            System.out.println("tag -> " + element[1] + "mem -> " + element[2] + "ager -> " + element[5]);
 
 
-                while (!this.queueConnection.startJob((int) element[2])) {
+            Thread h = new Thread(() -> {
+                while(!stopThread) {
+                    lockQueue.lock();
                     try {
-                        lockJob.lock();
-                        conditionlockJob.await();
+                        waitQueue.await();
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-                    lockJob.unlock();
+                    lockElement.lock();
+                    try {
+                        element = queueConnection.getNextJob();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    lockElement.unlock();
+                    if((int)element[5]==4) {
+                        break;
+                    }
+                    lockQueue.unlock();
                 }
+            });
+
+            h.start();
+
+            while (!this.queueConnection.startJob((int)element[2],lockElement)) {
+                try {
+                    lockJob.lock();
+                    conditionlockJob.await();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                lockJob.unlock();
+            }
+            queueConnection.rem(element);
+            lockElement.unlock();
+            stopThread = true;
+            waitQueue.signalAll();
+            h.join();
+
+            Thread t = new Thread(() -> {
+
 
                 int client = (int) element[0];
 

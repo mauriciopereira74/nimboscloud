@@ -31,7 +31,7 @@ public class QueueConnection implements AutoCloseable {
         Object[] objeto=null;
         if(!listQueue.isEmpty()){
             objeto = listQueue.get(0);
-            listQueue.remove(0);
+            listQueue.remove(0  );
         }
         return objeto;
     }
@@ -135,12 +135,37 @@ public class QueueConnection implements AutoCloseable {
         return maxMemory;
     }
 
-    public boolean startJob(int mem){
+    public Object[] getNextJob() throws InterruptedException {
+        lockQueue.lock();
+        Object[] result = (Object[]) listQueue.get(0);
+        int lowestMem = (int)listQueue.get(0)[2];
+
+        for (Object[] element : listQueue) {
+            if ((int) element[5] == 4) {
+                result = element;
+                break;
+            }
+            if ((int) element[2] < lowestMem) {
+                lowestMem =(int) element[2];
+                result = element;
+            }
+
+            element[5] = (int)element[5] + 1;
+        }
+
+        return result;
+
+        }
+
+
+
+    public boolean startJob(int mem, ReentrantLock lock){
         try{
             lockMemory.lock();
             if(mem <= this.getMemory()){
                 this.rmMemory(mem);
                 this.rmMemoryonWait(mem);
+                lock.lock();
                 return true;
             }else{
                 return false;
@@ -148,6 +173,15 @@ public class QueueConnection implements AutoCloseable {
         }finally {
             lockMemory.unlock();
         }
+    }
+
+    public void addExec(Object[] element){
+        lockMemory.lock();
+        listQueue.add(element);
+        this.addThreadsonWait();
+        this.addMemoryonWait((int) element[2]);
+        lockMemory.unlock();
+
     }
 
     @Override

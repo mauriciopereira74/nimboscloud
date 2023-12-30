@@ -176,7 +176,6 @@ public class Client {
 
         System.out.println(" | Pedido Com Tag: "+ job + " |");
 
-
     }
 
     private void waitExec(TaggedConnection taggedConnection) throws IOException {

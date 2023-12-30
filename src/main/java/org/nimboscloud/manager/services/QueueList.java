@@ -42,8 +42,7 @@ public class QueueList implements AutoCloseable {
                 flag = true;
                 ReentrantLock lock = queue.getLock();
                 Condition condition = queue.getCondition();
-                queue.add(pedido);
-                queue.addMemoryonWait(mem);
+                queue.addExec(pedido);
                 lock.lock();
                 condition.signalAll();
                 lock.unlock();
@@ -74,8 +73,7 @@ public class QueueList implements AutoCloseable {
             }
             ReentrantLock lock = list.get(minIndex).getLock();
             Condition condition = list.get(minIndex).getCondition();
-            list.get(minIndex).add(pedido);
-            list.get(minIndex).addMemoryonWait(mem);
+            list.get(minIndex).addExec(pedido);
             lock.lock();
             condition.signalAll();
             lock.unlock();
