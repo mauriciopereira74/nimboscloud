@@ -136,7 +136,6 @@ public class HandleServer implements Runnable{
                 }
                 if(exit==1){
                     while(queueConnection.getThreadsExcuting()>0){
-                        System.out.println(queueConnection.getThreadsExcuting());
                         synchronized (controlock) {
                             controlock.wait();
                         }
