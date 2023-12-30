@@ -8,11 +8,7 @@ import org.nimboscloud.JobFunction.JobFunctionException;
 
 import java.io.*;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.Arrays;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class Server {
 
@@ -75,15 +71,22 @@ public class Server {
                             taggedConnection.sendR(frameReceive);
 
                         } catch (JobFunctionException e) {
-                            FrameReceive frameReceive = new FrameReceive(frameSend.tag, 1, null);
+                            FrameReceive frameReceive = null;
+                            if(e.getMessage().equals("Could not compute the job.")){
+                                frameReceive = new FrameReceive(frameSend.tag, 1, null);
+                            }
+                            else if (e.getMessage().equals("Job computation failed due to runtime error.")){
+                                frameReceive = new FrameReceive(frameSend.tag, 2, null);
+                            }
+
                             try {
+                                assert frameReceive != null;
                                 taggedConnection.sendR(frameReceive);
                             } catch (IOException ex) {
                                 throw new RuntimeException(ex);
                             }
 
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
+                        } catch (IOException ignored) {
                         }
                     });
 

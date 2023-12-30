@@ -220,14 +220,14 @@ public class Client {
             jobsWait.remove(frame.pedidoCliente);
 
             if (files.containsKey(frame.pedidoCliente)) {
-                fileName = "Out" + frame.pedidoCliente + "_" + files.get(frame.pedidoCliente);
+                fileName = "Out" + frame.pedidoCliente + "_" + files.get(frame.pedidoCliente) + ".7z";
             } else {
-                fileName = "Out" + frame.pedidoCliente + ".txt";
+                fileName = "Out" + frame.pedidoCliente + ".7z";
             }
 
             Path caminhoAbsoluto = Paths.get(fileName).toAbsolutePath();
 
-            if (frame.exp == 1) {
+            if (frame.exp == 1 || frame.exp == 2) {
 
                 System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\nError: " + frame.messageException + '\n');
                 try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {

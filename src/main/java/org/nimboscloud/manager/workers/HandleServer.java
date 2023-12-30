@@ -270,8 +270,10 @@ public class HandleServer implements Runnable{
                     TaggedConnection.FrameReceiveClient frameClient;
                     if (frame.exp == 0) {
                         frameClient = new TaggedConnection.FrameReceiveClient(frame.exp, pedido.pedidoCliente, frame.data, null);
-                    } else {
+                    } else if (frame.exp == 1) {
                         frameClient = new TaggedConnection.FrameReceiveClient(frame.exp, pedido.pedidoCliente, null, "Could not compute the job.");
+                    }else{
+                        frameClient = new TaggedConnection.FrameReceiveClient(frame.exp, pedido.pedidoCliente, null, "Job computation failed due to runtime error.");
                     }
                     try {
                         taggedConnection1.sendC(frameClient);
