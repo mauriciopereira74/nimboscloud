@@ -202,6 +202,31 @@ public class QueueConnection implements AutoCloseable {
 
     }
 
+    public String getQueueInfo(int count) {
+        StringBuilder info = new StringBuilder();
+
+        lockThreadsonWait.lock();
+        lockThreadsExcuting.lock();
+        lockMemory.lock();
+
+        try {
+            info.append("Worker #").append(count).append("\n");
+            info.append("  Threads Waiting: ").append(getThreadsonWait()).append("\n");
+            info.append("  Threads Excuting: ").append(getThreadsExcuting()).append("\n");
+            info.append("  Available Memory: ").append(getMemory()).append("\n");
+            info.append("  Memory Waiting: ").append(getMemoryOnWait()).append("\n");
+            info.append("  Max Memory: ").append(getMaxMemory()).append("\n");
+        } finally {
+            lockThreadsonWait.unlock();
+            lockThreadsExcuting.unlock();
+            lockMemory.unlock();
+        }
+
+        return info.toString();
+    }
+
+
+
     @Override
     public void close() throws Exception {
 

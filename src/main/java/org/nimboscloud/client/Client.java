@@ -12,16 +12,15 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Client {
-    private static String username;
+    private String username;
     private int jobs=0;
     private Map<Integer, String> files = new HashMap<>();
+    private Set<Integer> jobsWait = new HashSet<>();
     private static ReentrantLock sendlock = new ReentrantLock();
 
     public static void main(String[] args) {
@@ -33,6 +32,16 @@ public class Client {
             TaggedConnection taggedConnection = new TaggedConnection(in,null);
             // Display help menu as soon as the client connects
             processHelp();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                // Perform cleanup or termination tasks
+                try {
+                    close(socket,out);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+            }));
 
             BufferedReader systemIn = new BufferedReader(new InputStreamReader(System.in));
 
@@ -50,7 +59,7 @@ public class Client {
                     continue;
                 }
                 Client client=new Client();
-                client.handle_command(parts, in, out,taggedConnection);
+                client.handle_command(parts, in, out,taggedConnection,socket);
 
             }
 
@@ -64,37 +73,43 @@ public class Client {
         }
     }
 
-    private  void handle_command(String[] parts, DataInputStream in, DataOutputStream out,TaggedConnection taggedConnection){
+    private  void handle_command(String[] parts, DataInputStream in, DataOutputStream out,TaggedConnection taggedConnection,Socket socket){
 
         try{
-            if(parts[0].equals("register")){
-                out.writeInt(0);
-                out.writeUTF(parts[1]);
-                out.writeUTF(parts[2]);
-                out.flush();
+            switch (parts[0]) {
+                case "register":
+                    out.writeInt(0);
+                    out.writeUTF(parts[1]);
+                    out.writeUTF(parts[2]);
+                    out.flush();
 
-                boolean flag = in.readBoolean();
-                if (flag) System.out.println("Register successful for user: " + parts[1]);
-            }
-            else if (parts[0].equals("login")){
-                out.writeInt(1);
-                out.writeUTF(parts[1]);
-                out.writeUTF(parts[2]);
-                out.flush();
+                    boolean flag = in.readBoolean();
+                    if (flag) {
+                        System.out.println("Register successful for user: " + parts[1]);
+                    }
+                    break;
+                case "login":
+                    out.writeInt(1);
+                    out.writeUTF(parts[1]);
+                    out.writeUTF(parts[2]);
+                    out.flush();
 
-                boolean flag = in.readBoolean();
-                if (flag) {
-                    username = parts[1];
-                    System.out.println("Login successful for user: " + username);
-                    processAuthenticatedMenu(in, out, taggedConnection);
-                }
-                else{
-                    System.out.println("Login failed. Invalid credentials or user already logged in.\n");
-                }
-            }
-            else{
-                System.out.println("Command doesnt exist!");
-                return;
+                    boolean loginFlag = in.readBoolean();
+                    if (loginFlag) {
+                        username = parts[1];
+                        System.out.println("Login successful for user: " + username);
+                        processAuthenticatedMenu(in, out, taggedConnection);
+                    } else {
+                        System.out.println("Login failed. Invalid credentials or user already logged in.\n");
+                    }
+                    break;
+                case "exit":
+                    System.out.println("Exiting the application...");
+                    close(socket, out);
+                    break;
+                default:
+                    System.out.println("Command doesn't exist!");
+                    break;
             }
         }catch (Exception e) {
             e.printStackTrace();
@@ -116,25 +131,24 @@ public class Client {
 
             switch (parts[0]) {
                 case "logout" -> {
-                    out.writeInt(2);
-                    out.writeUTF(username);
-                    out.flush();
-                    boolean response = in.readBoolean();
-                    if (response) {
-                        System.out.println("Logout successful for user: " + username);
-                        for (int i = 0; i < 3; ++i) System.out.println();
-                        processHelp();
-                        break label;
-                    } else {
-                        System.out.println("Logout error!");
+                    if(jobsWait.isEmpty()){
+                        out.writeInt(2);
+                        out.writeUTF(username);
+                        out.flush();
+                        boolean response = in.readBoolean();
+                        if (response) {
+                            System.out.println("Logout successful for user: " + username);
+                            for (int i = 0; i < 3; ++i) System.out.println();
+                            processHelp();
+                            break label;
+                        } else {
+                            System.out.println("Logout error!");
+                        }
+                    }
+                    else{
+                        System.out.println("Wait until the end of your jobs!\n");
                     }
                 }
-                case "status" -> {
-                    out.writeInt(4);
-                    out.flush();
-                    System.out.println(in.readUTF());
-                }
-                case "help" -> processHelp();
                 case "exec" -> {
                     int job = jobs;
                     jobs = jobs +1;
@@ -149,9 +163,13 @@ public class Client {
 
                     t.start();
                 }
-                case "view-jobs" -> {
-                    // Lógica para visualizar Jobs já executados
+                case "status" -> {
+                    out.writeInt(4);
+                    out.flush();
+
+                    System.out.println(in.readUTF());
                 }
+                case "help" -> processHelp();
                 default -> System.out.println("Comando desconhecido. Digite 'help' para obter a lista de comandos.");
             }
         }
@@ -160,13 +178,13 @@ public class Client {
     private void initExec(DataInputStream in, DataOutputStream out, String[] parts, int job) throws IOException {
 
         sendlock.lock();
-        out.writeInt(3);
-        out.writeInt(job);
-        out.writeInt(Integer.  parseInt(parts[2]));
-        byte[] byteArray =null;
+
+        jobsWait.add(job);
+
+        byte[] byteArray = new byte[0];
+
         if(!parts[1].contains(".")){
-            out.writeUTF(parts[1]);
-            out.flush();
+            byteArray = parts[1].getBytes();
         }
         else{
             try {
@@ -176,13 +194,16 @@ public class Client {
                 // Ler todos os bytes do arquivo
                 byteArray = Files.readAllBytes(caminhoAbsoluto);
 
-                System.out.println(Arrays.toString(byteArray));
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            out.writeUTF(Arrays.toString(byteArray));
-            out.flush();
         }
+        out.writeInt(3);
+        out.writeInt(job);
+        out.writeInt(Integer.parseInt(parts[2]));
+        out.writeInt(byteArray.length);
+        out.write(byteArray);
+        out.flush();
 
         sendlock.unlock();
 
@@ -194,9 +215,9 @@ public class Client {
 
         TaggedConnection.FrameReceiveClient frame = taggedConnection.receiveC();
         String fileName;
-
+        jobsWait.remove(frame.pedidoCliente);
         if(files.containsKey(frame.pedidoCliente)){
-           fileName = "Out" + files.get(frame.pedidoCliente);
+           fileName = "Out" + frame.pedidoCliente + "_" + files.get(frame.pedidoCliente);
         }
         else{
             fileName = "Out" + frame.pedidoCliente + ".txt";
@@ -218,7 +239,6 @@ public class Client {
             }
         }
 
-
     }
 
     private static void authMenu(String username) {
@@ -227,9 +247,8 @@ public class Client {
         helpMenu.append("\n");
         helpMenu.append("========================================== " + "Bem-vindo, ").append(username).append("!").append(" ==============================================\n");
         helpMenu.append("nimbouscloud.help> 'exec'                     - Execute a Job\n");
-        helpMenu.append("nimbouscloud.help> 'view-jobs'                - View the last executed jobs\n");
-        helpMenu.append("nimbouscloud.help> 'logout'                   - Logout the user provided in the username\n");
         helpMenu.append("nimbouscloud.help> 'status'                   - Displays information about the user\n");
+        helpMenu.append("nimbouscloud.help> 'logout'                   - Logout the user provided in the username\n");
         helpMenu.append("============================================================================================================\n");
 
         System.out.println(helpMenu);
@@ -248,6 +267,15 @@ public class Client {
         helpMenu.append("=========================================================================================================\n");
 
         System.out.println(helpMenu);
+    }
+
+    private static void close(Socket socket, DataOutputStream out) throws IOException {
+        out.writeInt(999);
+        out.flush();
+
+        socket.shutdownOutput();
+        socket.shutdownInput();
+        socket.close();
     }
 }
 

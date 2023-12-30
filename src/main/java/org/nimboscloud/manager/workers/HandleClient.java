@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.nimboscloud.manager.services.QueueConnection;
 import org.nimboscloud.manager.services.QueueList;
 import org.nimboscloud.manager.skeletons.AuthenticationManagerSkeleton;
 
@@ -34,13 +35,6 @@ public class HandleClient implements Runnable {
 
             handle_cliente(in, out);
 
-            socket.shutdownInput();
-
-            out.writeUTF("App closed");
-            out.flush();
-
-            socket.shutdownOutput();
-            socket.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -81,47 +75,75 @@ public class HandleClient implements Runnable {
 //    }
 
     public void handle_cliente(DataInputStream in, DataOutputStream out) {
-        while (true) {
+        boolean continueHandling = true;
 
+        while (continueHandling) {
             try {
-                int command;
-                command = in.readInt();
-                boolean flag;
+                int command = in.readInt();
 
                 switch (command) {
-                    case 0 -> { // register
+                    case 0: // register
                         String username = in.readUTF();
                         String password = in.readUTF();
                         authSkeleton.processRegister(username, password, out);
-                    }
-                    case 1 -> { //login
-                        String username = in.readUTF();
-                        String password = in.readUTF();
-                        authSkeleton.processLogin(username, password, out);
-                    }
-                    case 2 -> { // logout
-                        String username = in.readUTF();
-                        authSkeleton.processLogout(username, out);
-                    }
-                    case 3 -> { // exec
+                        break;
+                    case 1: // login
+                        String loginUsername = in.readUTF();
+                        String loginPassword = in.readUTF();
+                        authSkeleton.processLogin(loginUsername, loginPassword, out);
+                        break;
+                    case 2: // logout
+                        String logoutUsername = in.readUTF();
+                        authSkeleton.processLogout(logoutUsername, out);
+                        break;
+                    case 3: // exec
                         int tag = in.readInt();
                         int mem = in.readInt();
+
+                        int length = in.readInt();
+
+                        byte[] data = new byte[length];
+                        in.readFully(data);
+
                         int ager = 0;
-                        String data = in.readUTF();
 
-                        Object[] objeto = new Object[]{cliente, tag, mem, data, out,ager};
-
+                        Object[] objeto = new Object[]{cliente, tag, mem, data, out, ager};
                         queueList.escolheQueue(objeto);
+                        break;
+                    case 4: // status
+                        ReentrantLock lockList = queueList.getLockList();
+                        lockList.lock();
+                        StringBuilder res = new StringBuilder();
+                        int count = 0;
+                        if (!queueList.getList().isEmpty()) {
+                            try {
+                                for (QueueConnection queue : queueList.getList()) {
+                                    res.append(queue.getQueueInfo(count));
+                                    res.append("\n\n");
+                                    count++;
+                                }
+                            } finally {
+                                lockList.unlock();
+                            }
+                        } else {
+                            res.append("Any Workers Available!\n");
+                        }
+                        out.writeUTF(res.toString());
+                        out.flush();
+                        break;
+                    case 999:
+                        socket.shutdownOutput();
+                        socket.shutdownInput();
+                        socket.close();
 
-                    }
-                    case 4 -> { // status
-
-                    }
+                        continueHandling = false;
+                        break;
+                    default:
+                        System.out.println("Unknown command: " + command);
+                        break;
                 }
-
             } catch (IOException e) {
                 e.printStackTrace();
-
             }
         }
     }

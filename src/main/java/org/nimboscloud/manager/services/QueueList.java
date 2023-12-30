@@ -84,6 +84,11 @@ public class QueueList implements AutoCloseable {
         lockList.unlock();
         
     }
+
+    public ReentrantLock getLockList(){
+        return lockList;
+    }
+
     @Override
     public void close() throws Exception {
 

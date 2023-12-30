@@ -25,6 +25,16 @@ public class Server {
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             TaggedConnection taggedConnection = new TaggedConnection(in,out);
 
+//            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+//                // Perform cleanup or termination tasks
+//                try {
+//                    close(socket,out);
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
+//
+//            }));
+
             try {
                 BufferedReader systemIn = new BufferedReader(new InputStreamReader(System.in));
 
@@ -74,6 +84,15 @@ public class Server {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static void close(Socket socket, DataOutputStream out) throws IOException {
+        out.writeInt(999);
+        out.flush();
+
+        socket.shutdownOutput();
+        socket.shutdownInput();
+        socket.close();
     }
 }
 

@@ -71,7 +71,7 @@ public class HandleServer implements Runnable{
             queueList.addQueue(queueConnection);
 
             try {
-                Thread t = new Thread(() -> {
+                Thread t1 = new Thread(() -> {
                     try {
                         handleServerIn(in,taggedConnection);
                     } catch (InterruptedException | IOException e) {
@@ -79,22 +79,31 @@ public class HandleServer implements Runnable{
                     }
                 });
 
-                t.start();
+                t1.start();
+
+                Thread t2 = new Thread(() -> {
+                    try {
+                        handleServerOut(taggedConnection);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+
+                t2.start();
+
+//                int end = in.readInt();
+//                t1.stop();
+//                t2.stop();
+//                socket.shutdownOutput();
+//                socket.shutdownInput();
+//                socket.close();
 
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
-            handleServerOut(taggedConnection);
 
 
-            socket.shutdownInput();
-
-            out.writeUTF("App closed");
-            out.flush();
-
-            socket.shutdownOutput();
-            socket.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -182,8 +191,8 @@ public class HandleServer implements Runnable{
                 int tag = (int) elementAux[1];
 
                 int memPedido = (int) elementAux[2];
-                String full_string = (String) elementAux[3];
-                byte[] taskCode = StringToByteArray(full_string);
+
+                byte[] taskCode = (byte[]) elementAux[3];
 
                 DataOutputStream outPedido = (DataOutputStream) elementAux[4];
 
@@ -214,8 +223,7 @@ public class HandleServer implements Runnable{
 
     }
     
-
-
+    
     public void handleServerOut(TaggedConnection taggedConnection) throws IOException {
 
         while (true){
@@ -226,6 +234,7 @@ public class HandleServer implements Runnable{
 
                 PedidoInfo pedido = obterPedido(frame.tag);
                 queueConnection.addMemory(pedido.memPedido);
+                queueConnection.rmThreadsonWait();
                 Object[] aux = clientOutMap.get(pedido.cliente);
                 TaggedConnection taggedConnection1 = (TaggedConnection) aux[1];
                 TaggedConnection.FrameReceiveClient frameClient;
