@@ -138,7 +138,7 @@ public class HandleServer implements Runnable{
                     }
                     if(x==1) {
                         System.out.println(element[1]);
-                        if ((int) element[5] == 8) {
+                        if ((int) element[5] == 5) {
                             lockElement.unlock();
                             lockQueue.unlock();
                             break;
@@ -171,6 +171,7 @@ public class HandleServer implements Runnable{
 
             h.join();
             queueConnection.setControl(0);
+            queueConnection.increaseAgerJobs();
             //System.out.println(elementAux[1]);
 
             Thread t = new Thread(() -> {

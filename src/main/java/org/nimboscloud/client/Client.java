@@ -2,6 +2,7 @@ package org.nimboscloud.client;
 
 import org.nimboscloud.manager.services.TaggedConnection;
 
+import java.awt.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -11,12 +12,16 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Client {
     private static String username;
     private int jobs=0;
+    private Map<Integer, String> files = new HashMap<>();
     private static ReentrantLock sendlock = new ReentrantLock();
 
     public static void main(String[] args) {
@@ -159,19 +164,26 @@ public class Client {
         out.writeInt(job);
         out.writeInt(Integer.  parseInt(parts[2]));
         byte[] byteArray =null;
-        try {
-            Path caminhoAbsoluto = Paths.get(parts[1]).toAbsolutePath();
+        if(!parts[1].contains(".")){
+            out.writeUTF(parts[1]);
+            out.flush();
+        }
+        else{
+            try {
+                files.put(job,parts[1]);
+                Path caminhoAbsoluto = Paths.get(parts[1]).toAbsolutePath();
 
-            // Ler todos os bytes do arquivo
-            byteArray = Files.readAllBytes(caminhoAbsoluto);
+                // Ler todos os bytes do arquivo
+                byteArray = Files.readAllBytes(caminhoAbsoluto);
 
-            System.out.println(Arrays.toString(byteArray));
-        } catch (IOException e) {
-            e.printStackTrace();
+                System.out.println(Arrays.toString(byteArray));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            out.writeUTF(Arrays.toString(byteArray));
+            out.flush();
         }
 
-        out.writeUTF(Arrays.toString(byteArray));
-        out.flush();
         sendlock.unlock();
 
         System.out.println(" | Pedido Com Tag: "+ job + " |");
@@ -181,7 +193,14 @@ public class Client {
     private void waitExec(TaggedConnection taggedConnection) throws IOException {
 
         TaggedConnection.FrameReceiveClient frame = taggedConnection.receiveC();
-        String fileName = jobs + "Out.txt";
+        String fileName;
+
+        if(files.containsKey(frame.pedidoCliente)){
+           fileName = "Out" + files.get(frame.pedidoCliente);
+        }
+        else{
+            fileName = "Out" + frame.pedidoCliente + ".txt";
+        }
 
         Path caminhoAbsoluto = Paths.get(fileName).toAbsolutePath();
 
@@ -190,14 +209,12 @@ public class Client {
             System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\nError: " + frame.messageException + '\n');
             try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
                 bos.write(frame.messageException.getBytes());
-
             }
         } else {
 
             System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\n->" + Arrays.toString(frame.data) + '\n');
             try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
                 bos.write(frame.data);
-
             }
         }
 

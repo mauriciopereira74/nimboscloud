@@ -159,7 +159,6 @@ public class QueueConnection implements AutoCloseable {
                     result = element;
                 }
 
-                element[5] = (int) element[5] + 1;
             }
 
             return result;
@@ -168,6 +167,12 @@ public class QueueConnection implements AutoCloseable {
             lockQueue.unlock();
         }
 
+    }
+
+    public void increaseAgerJobs(){
+        for (Object[] element : listQueue) {
+            element[5] = (int) element[5] + 1;
+        }
     }
 
 
