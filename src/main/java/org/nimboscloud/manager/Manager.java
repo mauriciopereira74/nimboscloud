@@ -65,7 +65,7 @@ public class Manager {
 
             Socket socket = ss.accept();
 
-            Thread t = new Thread(new HandleClient(socket,authSkeleton,numCliente,queueList));
+            Thread t = new Thread(new HandleClient(socket,authSkeleton,numCliente,queueList,clientOutMap));
             t.start();
             numCliente++;
 

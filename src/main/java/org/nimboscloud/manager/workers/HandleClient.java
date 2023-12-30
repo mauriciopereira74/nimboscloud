@@ -11,6 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.nimboscloud.manager.services.QueueConnection;
 import org.nimboscloud.manager.services.QueueList;
+import org.nimboscloud.manager.services.TaggedConnection;
 import org.nimboscloud.manager.skeletons.AuthenticationManagerSkeleton;
 
 public class HandleClient implements Runnable {
@@ -18,14 +19,16 @@ public class HandleClient implements Runnable {
     private AuthenticationManagerSkeleton authSkeleton;
     private int cliente;
     private QueueList queueList;
+    private Map<Integer, Object[]> clientOutMap = new HashMap<>();
 
     private ReentrantLock readLock = new ReentrantLock();
 
-    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int client, QueueList queueList) {
+    public HandleClient(Socket s, AuthenticationManagerSkeleton authSkeleton, int client, QueueList queueList,Map<Integer, Object[]> clientOutMap) {
         this.socket = s;
         this.authSkeleton = authSkeleton;
         this.cliente = client;
         this.queueList = queueList;
+        this.clientOutMap=clientOutMap;
     }
 
     public void run() {
@@ -80,6 +83,14 @@ public class HandleClient implements Runnable {
         while (continueHandling) {
             try {
                 int command = in.readInt();
+                TaggedConnection taggedConnection1 = null;
+                try {
+                    taggedConnection1 = new TaggedConnection(in, out);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+                clientOutMap.putIfAbsent(cliente, new Object[]{out, taggedConnection1});
 
                 switch (command) {
                     case 0: // register
@@ -112,6 +123,8 @@ public class HandleClient implements Runnable {
                         break;
                     case 4: // status
                         ReentrantLock lockList = queueList.getLockList();
+                        Object[] aux = clientOutMap.get(cliente);
+                        TaggedConnection taggedConnection2 = (TaggedConnection) aux[1];
                         lockList.lock();
                         StringBuilder res = new StringBuilder();
                         int count = 0;
@@ -128,10 +141,13 @@ public class HandleClient implements Runnable {
                         } else {
                             res.append("Any Workers Available!\n");
                         }
-                        out.writeUTF(res.toString());
-                        out.flush();
+                        taggedConnection2.SendStatus(res.toString());
                         break;
                     case 999:
+                        String name = in.readUTF();
+                        if (!name.equals("")){
+                            authSkeleton.processLogoutExit(name);
+                        }
                         socket.shutdownOutput();
                         socket.shutdownInput();
                         socket.close();

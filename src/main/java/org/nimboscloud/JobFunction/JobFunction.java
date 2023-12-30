@@ -9,6 +9,7 @@ public class JobFunction {
 
     public static byte[] execute(byte[] var0) throws JobFunctionException {
         try {
+
             ByteArrayOutputStream var1 = new ByteArrayOutputStream(var0.length);
             Random var2 = new Random();
             int var3 = var2.nextInt(100);

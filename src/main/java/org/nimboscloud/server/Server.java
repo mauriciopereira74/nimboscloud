@@ -10,9 +10,17 @@ import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
 public class Server {
 
     private static int memory;
+    private static final Object lock = new Object();
+    private static volatile boolean shutdownCondition = false;
+
+
 
     public Server(){}
 
@@ -21,19 +29,21 @@ public class Server {
         try {
             Socket socket = new Socket("localhost", 1667);
 
+            Server server = new Server();
+
             DataInputStream in = new DataInputStream(socket.getInputStream());
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-            TaggedConnection taggedConnection = new TaggedConnection(in,out);
+            TaggedConnection taggedConnection = new TaggedConnection(in, out);
 
-//            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-//                // Perform cleanup or termination tasks
-//                try {
-//                    close(socket,out);
-//                } catch (IOException e) {
-//                    throw new RuntimeException(e);
-//                }
-//
-//            }));
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                // Perform cleanup or termination tasks
+                try {
+                    server.close(out, taggedConnection, socket);
+
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }));
 
             try {
                 BufferedReader systemIn = new BufferedReader(new InputStreamReader(System.in));
@@ -52,44 +62,59 @@ public class Server {
             out.writeInt(memory);
             out.flush();
 
-            while (true){
+            while (true) {
                 FrameSend frameSend = taggedConnection.receiveS();
 
-                Thread t = new Thread(() -> {
-                    try {
-                        byte[] response = JobFunction.execute(frameSend.data);
-                        System.out.println(Arrays.toString(response));
-                        FrameReceive frameReceive = new FrameReceive(frameSend.tag,0,response);
-                        taggedConnection.sendR(frameReceive);
+                if (frameSend.tag != -1) {
 
-                    } catch (JobFunctionException e) {
-                        FrameReceive frameReceive = new FrameReceive(frameSend.tag,1,null);
+                    Thread t = new Thread(() -> {
                         try {
+                            byte[] response = JobFunction.execute(frameSend.data);
+                            System.out.println(Arrays.toString(response));
+                            FrameReceive frameReceive = new FrameReceive(frameSend.tag, 0, response);
                             taggedConnection.sendR(frameReceive);
-                        } catch (IOException ex) {
-                            throw new RuntimeException(ex);
+
+                        } catch (JobFunctionException e) {
+                            FrameReceive frameReceive = new FrameReceive(frameSend.tag, 1, null);
+                            try {
+                                taggedConnection.sendR(frameReceive);
+                            } catch (IOException ex) {
+                                throw new RuntimeException(ex);
+                            }
+
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
                         }
+                    });
 
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                    t.start();
+                }else{
+                    synchronized (lock) {
+                        taggedConnection.sendR(new FrameReceive(-2, 0, null));
+                        shutdownCondition = true;
+                        lock.notify(); // Notify the waiting thread (if any)
                     }
-                });
+                    break;
+                    }
+                }
 
-                t.start();
+
+
+            } catch(IOException e){
+                throw new RuntimeException(e);
             }
 
-
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
-    private static void close(Socket socket, DataOutputStream out) throws IOException {
-        out.writeInt(999);
+    public void close(DataOutputStream out,TaggedConnection taggedConnection,Socket socket) throws IOException, InterruptedException {
+        taggedConnection.sendR(new FrameReceive(-1, 0, null));
         out.flush();
 
+        synchronized (lock) {
+            while (!shutdownCondition) {
+                lock.wait();
+            }
+        }
         socket.shutdownOutput();
         socket.shutdownInput();
         socket.close();

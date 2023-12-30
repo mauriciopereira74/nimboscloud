@@ -170,9 +170,11 @@ public class QueueConnection implements AutoCloseable {
     }
 
     public void increaseAgerJobs(){
+        lockQueue.lock();
         for (Object[] element : listQueue) {
             element[5] = (int) element[5] + 1;
         }
+        lockQueue.unlock();
     }
 
 
@@ -183,6 +185,8 @@ public class QueueConnection implements AutoCloseable {
             if(mem <= this.getMemory()){
                 this.rmMemory(mem);
                 this.rmMemoryonWait(mem);
+                this.rmThreadsonWait();
+                this.addThreadsExcuting();
                 lock.lock();
                 return true;
             }else{

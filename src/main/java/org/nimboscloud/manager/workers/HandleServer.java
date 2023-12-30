@@ -16,6 +16,7 @@ public class HandleServer implements Runnable{
 
     private ReentrantLock lockJob = new ReentrantLock();
     private Condition conditionlockJob = lockJob.newCondition();
+    private Object controlock = new Object();
     private ReentrantLock lockElement = new ReentrantLock();
     public Object[] element;
     private ReentrantLock lockQueue;
@@ -24,6 +25,7 @@ public class HandleServer implements Runnable{
     private Map<Integer, PedidoInfo> pedidoMap = new HashMap<>();
     private QueueList queueList;
 
+    private int exit=0;
     private int numPedido;
     private Socket socket;
 
@@ -73,8 +75,8 @@ public class HandleServer implements Runnable{
             try {
                 Thread t1 = new Thread(() -> {
                     try {
-                        handleServerIn(in,taggedConnection);
-                    } catch (InterruptedException | IOException e) {
+                        handleServerIn(taggedConnection);
+                    } catch (IOException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                 });
@@ -82,14 +84,25 @@ public class HandleServer implements Runnable{
                 t1.start();
 
                 Thread t2 = new Thread(() -> {
+
+
                     try {
                         handleServerOut(taggedConnection);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
+
+
                 });
 
                 t2.start();
+
+                t1.join();
+                t2.join();
+
+                socket.shutdownOutput();
+                socket.shutdownInput();
+                socket.close();
 
 //                int end = in.readInt();
 //                t1.stop();
@@ -110,15 +123,32 @@ public class HandleServer implements Runnable{
     }
 
 
-    public void handleServerIn(DataInputStream in,TaggedConnection taggedConnection) throws InterruptedException, IOException {
+    public void handleServerIn(TaggedConnection taggedConnection) throws IOException, InterruptedException {
         lockQueue = queueConnection.getLock();
         waitQueue = queueConnection.getCondition();
         while (true) {
 
             while (queueConnection.isEmpty()) {
-                lockQueue.lock();
-                waitQueue.await();
-                lockQueue.unlock();
+                if(exit==0) {
+                    lockQueue.lock();
+                    waitQueue.await();
+                    lockQueue.unlock();
+                }
+                if(exit==1){
+                    while(queueConnection.getThreadsExcuting()>0){
+                        System.out.println(queueConnection.getThreadsExcuting());
+                        synchronized (controlock) {
+                            controlock.wait();
+                        }
+                    }
+                    FrameSend frame = new FrameSend(-1, null);
+                    try {
+                        taggedConnection.sendS(frame);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return;
+                }
             }
             lockElement.lock();
             element = queueConnection.getNextJob();
@@ -139,14 +169,20 @@ public class HandleServer implements Runnable{
                     try {
 
                         if (!queueConnection.isEmpty()){
-                            x=1;
-                            element = queueConnection.getNextJob();
+
+                            Object [] aux = queueConnection.getNextJob();
+                            if (aux!= element){
+                                x=1;
+                                element=aux;
+                            }
                         }
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                     if(x==1) {
-                        System.out.println(element[1]);
+                        lockJob.lock();
+                        conditionlockJob.signalAll();
+                        lockJob.unlock();
                         if ((int) element[5] == 5) {
                             lockElement.unlock();
                             lockQueue.unlock();
@@ -199,14 +235,7 @@ public class HandleServer implements Runnable{
                 int pedido = this.numPedido;
                 this.numPedido++;
 
-                TaggedConnection taggedConnection1 = null;
-                try {
-                    taggedConnection1 = new TaggedConnection(in, outPedido);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
 
-                clientOutMap.putIfAbsent(client, new Object[]{outPedido, taggedConnection1});
 
 
                 adicionarPedido(pedido, client, tag, memPedido);
@@ -226,34 +255,46 @@ public class HandleServer implements Runnable{
     
     public void handleServerOut(TaggedConnection taggedConnection) throws IOException {
 
-        while (true){
+        while (true) {
 
             FrameReceive frame = taggedConnection.receiveR();
+            if (frame.tag > -1) {
 
-            Thread t = new Thread(() -> {
+                Thread t = new Thread(() -> {
 
-                PedidoInfo pedido = obterPedido(frame.tag);
-                queueConnection.addMemory(pedido.memPedido);
-                queueConnection.rmThreadsonWait();
-                Object[] aux = clientOutMap.get(pedido.cliente);
-                TaggedConnection taggedConnection1 = (TaggedConnection) aux[1];
-                TaggedConnection.FrameReceiveClient frameClient;
-                if (frame.exp==0) {
-                    frameClient = new TaggedConnection.FrameReceiveClient(frame.exp, pedido.pedidoCliente, frame.data, null);
-                } else{
-                    frameClient = new TaggedConnection.FrameReceiveClient(frame.exp, pedido.pedidoCliente, null, "Could not compute the job.");
-                }
-                try {
-                    taggedConnection1.sendC(frameClient);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-
-                lockJob.lock();
-                conditionlockJob.signalAll();
-                lockJob.unlock();
-            });
-            t.start();
+                    PedidoInfo pedido = obterPedido(frame.tag);
+                    queueConnection.addMemory(pedido.memPedido);
+                    queueConnection.rmThreadsExcuting();
+                    Object[] aux = clientOutMap.get(pedido.cliente);
+                    TaggedConnection taggedConnection1 = (TaggedConnection) aux[1];
+                    TaggedConnection.FrameReceiveClient frameClient;
+                    if (frame.exp == 0) {
+                        frameClient = new TaggedConnection.FrameReceiveClient(frame.exp, pedido.pedidoCliente, frame.data, null);
+                    } else {
+                        frameClient = new TaggedConnection.FrameReceiveClient(frame.exp, pedido.pedidoCliente, null, "Could not compute the job.");
+                    }
+                    try {
+                        taggedConnection1.sendC(frameClient);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    synchronized (controlock) {
+                        controlock.notifyAll();
+                    }
+                    lockJob.lock();
+                    conditionlockJob.signalAll();
+                    lockJob.unlock();
+                });
+                t.start();
+            } else if(frame.tag == -1){
+                exit=1;
+                queueList.remQueue(queueConnection);
+                lockQueue.lock();
+                waitQueue.signalAll();
+                lockQueue.unlock();
+            } else{
+                break;
+            }
         }
     }
 

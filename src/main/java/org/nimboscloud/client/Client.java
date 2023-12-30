@@ -23,10 +23,12 @@ public class Client {
     private Set<Integer> jobsWait = new HashSet<>();
     private static ReentrantLock sendlock = new ReentrantLock();
 
+    private static final Object lock = new Object();
+
     public static void main(String[] args) {
         try {
             Socket socket = new Socket("localhost", 1666);
-
+            Client client=new Client();
             DataInputStream in = new DataInputStream(socket.getInputStream());
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             TaggedConnection taggedConnection = new TaggedConnection(in,null);
@@ -36,8 +38,8 @@ public class Client {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 // Perform cleanup or termination tasks
                 try {
-                    close(socket,out);
-                } catch (IOException e) {
+                    client.close(socket,out);
+                } catch (IOException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
 
@@ -58,7 +60,7 @@ public class Client {
                     processHelp();
                     continue;
                 }
-                Client client=new Client();
+
                 client.handle_command(parts, in, out,taggedConnection,socket);
 
             }
@@ -166,8 +168,7 @@ public class Client {
                 case "status" -> {
                     out.writeInt(4);
                     out.flush();
-
-                    System.out.println(in.readUTF());
+                    waitExec(taggedConnection);
                 }
                 case "help" -> processHelp();
                 default -> System.out.println("Comando desconhecido. Digite 'help' para obter a lista de comandos.");
@@ -214,31 +215,37 @@ public class Client {
     private void waitExec(TaggedConnection taggedConnection) throws IOException {
 
         TaggedConnection.FrameReceiveClient frame = taggedConnection.receiveC();
-        String fileName;
-        jobsWait.remove(frame.pedidoCliente);
-        if(files.containsKey(frame.pedidoCliente)){
-           fileName = "Out" + frame.pedidoCliente + "_" + files.get(frame.pedidoCliente);
-        }
-        else{
-            fileName = "Out" + frame.pedidoCliente + ".txt";
-        }
+        if (frame.exp!=-1) {
+            String fileName;
+            jobsWait.remove(frame.pedidoCliente);
 
-        Path caminhoAbsoluto = Paths.get(fileName).toAbsolutePath();
-
-        if (frame.exp == 1) {
-
-            System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\nError: " + frame.messageException + '\n');
-            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
-                bos.write(frame.messageException.getBytes());
+            if (files.containsKey(frame.pedidoCliente)) {
+                fileName = "Out" + frame.pedidoCliente + "_" + files.get(frame.pedidoCliente);
+            } else {
+                fileName = "Out" + frame.pedidoCliente + ".txt";
             }
-        } else {
 
-            System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\n->" + Arrays.toString(frame.data) + '\n');
-            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
-                bos.write(frame.data);
+            Path caminhoAbsoluto = Paths.get(fileName).toAbsolutePath();
+
+            if (frame.exp == 1) {
+
+                System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\nError: " + frame.messageException + '\n');
+                try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
+                    bos.write(frame.messageException.getBytes());
+                }
+            } else {
+
+                System.out.println("\nOutput Pedido com a Tag: " + frame.pedidoCliente + "\n->" + Arrays.toString(frame.data) + '\n');
+                try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(caminhoAbsoluto.toFile()))) {
+                    bos.write(frame.data);
+                }
             }
+        } else{
+            System.out.println(frame.messageException);
         }
-
+        synchronized (lock) {
+            lock.notifyAll();
+        }
     }
 
     private static void authMenu(String username) {
@@ -269,13 +276,31 @@ public class Client {
         System.out.println(helpMenu);
     }
 
-    private static void close(Socket socket, DataOutputStream out) throws IOException {
+    private void close(Socket socket, DataOutputStream out) throws IOException, InterruptedException {
+
+
+
+        synchronized (lock) {
+            while (jobsWait.size()>0) {
+                lock.wait();
+            }
+        }
         out.writeInt(999);
+        String name = this.getUsername();
+        if (name==null)
+            out.writeUTF("");
+        else {
+            out.writeUTF(name);
+        }
         out.flush();
 
         socket.shutdownOutput();
         socket.shutdownInput();
         socket.close();
+    }
+
+    public String getUsername() {
+        return username;
     }
 }
 

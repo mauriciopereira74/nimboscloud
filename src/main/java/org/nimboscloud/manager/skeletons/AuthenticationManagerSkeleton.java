@@ -12,27 +12,6 @@ public class AuthenticationManagerSkeleton {
         this.authManager = authManager;
     }
 
-    public void processCommand(String[] parts, DataOutputStream out) {
-        try{
-            String command = parts[0];
-            String user = parts[1];
-            String pass = parts[2];
-
-            switch (command) {
-                case "register":
-                    processRegister(user, pass, out);
-                case "login":
-                    processLogin(user, pass, out);
-                case "logout":
-                    processLogout(user, out);
-                default:
-                    out.writeUTF("Unknown command. Type 'help' for a list of commands.");
-                    out.flush();
-            }
-        } catch (IOException e){
-            e.printStackTrace();
-        }
-    }
 
     public void processRegister(String username, String password, DataOutputStream out) {
         try{
@@ -84,6 +63,12 @@ public class AuthenticationManagerSkeleton {
         }catch (IOException e){
                     e.printStackTrace();
         }
+    }
+
+    public void processLogoutExit(String username) {
+
+        boolean logoutSuccess = authManager.logoutUser(username);
+
     }
 
 
